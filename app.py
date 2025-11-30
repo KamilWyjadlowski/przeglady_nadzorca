@@ -142,20 +142,56 @@ def get_unique_names(inspections: List[Dict]) -> List[str]:
 @app.route("/")
 @app.route("/")
 @app.route("/")
+@app.route("/")
+@app.route("/")
 def index():
     inspections = load_inspections()
 
-    # przygotowujemy WIERSZE z prawdziwymi indeksami
-    rows = []
+    # pobieramy aktywne filtry z URL
+    f_nieruch = request.args.get("nieruchomosc", "").strip()
+    f_nazwa = request.args.get("nazwa", "").strip()
+    f_status = request.args.get("status", "").strip()
+    f_uwagi = request.args.get("uwagi", "").strip()
+
+    # najpierw filtrujemy wyniki
+    filtered = []
     for i, ins in enumerate(inspections):
-        row = ins.copy()
-        row["idx"] = i  # PRAWDZIWY indeks w JSON-ie
-        rows.append(row)
+        ok = True
 
-    # jeśli chcesz — tutaj możesz robić sortowanie rows
-    # rows = sorted(rows, key=lambda x: x["nazwa"])
+        if f_nieruch and ins.get("nieruchomosc") != f_nieruch:
+            ok = False
 
-    return render_template("index.html", inspections=rows)
+        if f_nazwa and ins.get("nazwa") != f_nazwa:
+            ok = False
+
+        if f_status and ins.get("status") != f_status:
+            ok = False
+
+        opis = ins.get("opis", "").strip()
+        if f_uwagi == "tak" and not opis:
+            ok = False
+        if f_uwagi == "nie" and opis:
+            ok = False
+
+        if ok:
+            row = ins.copy()
+            row["idx"] = i
+            filtered.append(row)
+
+    # A TERAZ generujemy listy opcji *tylko z filtered* !!!
+    used_properties = sorted({ins["nieruchomosc"] for ins in filtered})
+    used_names = sorted({ins["nazwa"] for ins in filtered})
+    used_status = sorted({ins["status"] for ins in filtered})
+    used_uwagi = ["tak", "nie"]
+
+    return render_template(
+        "index.html",
+        inspections=filtered,
+        used_properties=used_properties,
+        used_names=used_names,
+        used_status=used_status,
+        used_uwagi=used_uwagi,
+    )
 
 
 @app.route("/add", methods=["GET", "POST"])

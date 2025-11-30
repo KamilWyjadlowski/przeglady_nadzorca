@@ -11,10 +11,6 @@
   <body>
     <div class="container">
       <h1>Nadzorca przeglądów Kamila (wersja Alpha 1.0)</h1>
-      <div class="meta">
-        Wyświetlane są wszystkie przeglądy, posortowane według
-        <strong>najbliższej daty kolejnego przeglądu</strong>.
-      </div>
 
       <div
         style="
@@ -30,7 +26,52 @@
         >
       </div>
 
+      <form method="GET" class="filters" style="margin-bottom: 20px; display:flex; gap:20px; flex-wrap:wrap;">
+
+  <div>
+    <label>Nieruchomość</label>
+    <select name="nieruchomosc">
+      <option value="">(wszystkie)</option>
+      {% for p in used_properties %}
+        <option value="{{ p }}" {% if request.args.get('nieruchomosc') == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Przegląd</label>
+    <select name="nazwa">
+      <option value="">(wszystkie)</option>
+      {% for n in used_names %}
+        <option value="{{ n }}" {% if request.args.get('nazwa') == n %}selected{% endif %}>{{ n }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Status</label>
+    <select name="status">
+      <option value="">(wszystkie)</option>
+      {% for s in used_status %}
+        <option value="{{ s }}" {% if request.args.get('status') == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Uwagi</label>
+    <select name="uwagi">
+      <option value="">(wszystkie)</option>
+      <option value="tak" {% if request.args.get('uwagi') == "tak" %}selected{% endif %}>Ma uwagi</option>
+      <option value="nie" {% if request.args.get('uwagi') == "nie" %}selected{% endif %}>Bez uwag</option>
+    </select>
+  </div>
+
+</form>
+
+
       {% if inspections %}
+
       <table>
         <thead>
           <tr>
@@ -143,5 +184,12 @@
       <p class="empty">Brak przeglądów w pliku <code>przeglady.json</code>.</p>
       {% endif %}
     </div>
-  </body>
+    <script>
+  document.querySelectorAll('.filters select').forEach(select => {
+    select.addEventListener('change', function () {
+      this.form.submit();
+    });
+  });
+</script>
+</body>
 </html>
