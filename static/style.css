@@ -4,7 +4,7 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f5f5f5;
   margin: 20px;
-  font-size: 16px; /* NOWE – większa baza */
+  font-size: 16px;
 }
 
 .container {
@@ -22,6 +22,17 @@ h1 {
   font-size: 60px;
 }
 
+h2 {
+  margin-top: 0;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -32,7 +43,7 @@ th,
 td {
   border-bottom: 1px solid #000000;
   padding: 30px 15px;
-  text-align: left;
+  text-align: center;
   font-size: 20px;
 }
 
@@ -43,6 +54,15 @@ th {
 
 tr:nth-child(even) {
   background: #00000020;
+}
+
+table th:nth-child(1),
+table td:nth-child(1) {
+  width: 40px;
+}
+table th:nth-child(11),
+table td:nth-child(11) {
+  width: 60px;
 }
 
 .status-zalegly {
@@ -62,9 +82,9 @@ tr:nth-child(even) {
 
 .badge {
   display: inline-block;
-  padding: 3px 8px; /* było 2px 6px */
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 13px; /* było 11px */
+  font-size: 13px;
 }
 
 .badge-zalegly {
@@ -82,17 +102,6 @@ tr:nth-child(even) {
   color: #1b8a2f;
 }
 
-.empty {
-  margin-top: 15px;
-  font-size: 15px; /* było 14px */
-}
-
-.meta {
-  font-size: 14px; /* było 12px */
-  color: #666;
-  margin-bottom: 10px;
-}
-
 .filters {
   margin-bottom: 20px;
   display: flex;
@@ -100,67 +109,62 @@ tr:nth-child(even) {
   flex-wrap: wrap;
 }
 
+.filters label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
 .form {
-  margin-top: 18px; /* było 15px */
+  margin-top: 18px;
 }
 
 .field {
-  margin-bottom: 14px; /* było 12px */
+  margin-bottom: 14px;
 }
 
 .field label {
   display: block;
   font-weight: 600;
   margin-bottom: 4px;
-  font-size: 14px; /* było 13px */
+  font-size: 14px;
 }
 
 .field input[type="text"],
 .field input[type="number"],
+.field input[type="tel"],
+.field input[type="email"],
 .field textarea {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px; /* było 6px 8px */
+  padding: 8px 10px;
   border-radius: 4px;
   border: 1px solid #ccc;
-  font-size: 15px; /* było 13px */
+  font-size: 15px;
 }
 
-.field textarea {
+textarea {
   resize: vertical;
 }
 
 .error {
   color: #b00020;
-  font-size: 13px; /* było 12px */
+  font-size: 13px;
   margin-top: 2px;
 }
 
 .hint {
-  font-size: 13px; /* było 11px */
+  font-size: 13px;
   color: #777;
   margin-top: 3px;
 }
 
-.chip {
-  display: inline-block;
-  padding: 2px 5px; /* było 1px 4px */
-  border-radius: 3px;
-  background: #f0f0f0;
-  margin-right: 3px;
-}
-
-.actions {
-  margin-top: 18px; /* było 15px */
-}
-
 .btn {
   display: inline-block;
-  padding: 8px 14px; /* było 6px 10px */
+  padding: 8px 14px;
   border-radius: 4px;
   border: 1px solid #ccc;
   background: #fafafa;
-  font-size: 14px; /* było 13px */
+  font-size: 14px;
   cursor: pointer;
   text-decoration: none;
   color: #333;
@@ -179,20 +183,16 @@ tr:nth-child(even) {
 .date-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px; /* było 6px */
-}
-
-.date-input-wrapper input[type="text"] {
-  flex: 1;
+  gap: 8px;
 }
 
 .date-picker-btn {
-  padding: 8px 10px; /* było 6px 8px */
+  padding: 8px 10px;
   border-radius: 4px;
   border: 1px solid #ccc;
   background: #fafafa;
   cursor: pointer;
-  font-size: 16px; /* było 14px */
+  font-size: 16px;
 }
 
 .date-picker-btn:hover {
@@ -202,15 +202,6 @@ tr:nth-child(even) {
 .contact-wrapper {
   display: flex;
   flex-direction: column;
-  justify-content: center; /* pion */
-  align-items: center; /* poziom */
-  width: 100%;
-  height: 100%;
-}
-
-.contact-phone,
-.contact-email {
-  display: flex;
   align-items: center;
   justify-content: center;
 }
@@ -227,90 +218,21 @@ tr:nth-child(even) {
   word-break: break-all;
 }
 
-.contact-phone-icon,
-.contact-email-icon {
-  margin-right: 4px;
-}
-
 .contact-none {
   font-size: 13px;
   color: #999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
 }
 
-/* szerokości wybranych kolumn */
-table th:nth-child(1),
-table td:nth-child(1) {
-  width: 10px; /* Lp. */
-  text-align: center;
-}
-table th:nth-child(2),
-table td:nth-child(2) {
-  width: 10%; /* Nieruchomość */
-  text-align: center;
-}
-table th:nth-child(3),
-table td:nth-child(3) {
-  width: 20%; /* Nazwa */
-  text-align: center;
-}
-table th:nth-child(4),
-table td:nth-child(4) {
-  width: 10%; /* Firma */
-  text-align: center;
-}
-table th:nth-child(5),
-table td:nth-child(5) {
-  width: 20%; /* Kontakt */
-  text-align: center;
-}
-table th:nth-child(6),
-table td:nth-child(6) {
-  width: 5%; /* Ostatnia data */
-  text-align: center;
-}
-table th:nth-child(7),
-table td:nth-child(7) {
-  width: 10%; /* Częstotliwość */
-  text-align: center;
-}
-table th:nth-child(8),
-table td:nth-child(8) {
-  width: 5%; /* Kolejna data */
-  text-align: center;
-}
-table th:nth-child(9),
-table td:nth-child(9) {
-  width: 5%; /* Status */
-  text-align: center;
-}
-table th:nth-child(10),
-table td:nth-child(10) {
-  width: 5%; /* Opis */
-  text-align: center;
-}
-table th:nth-child(11),
-table td:nth-child(11) {
-  width: 10px; /* Akcje */
-  text-align: center;
-}
-
-/* Przycisk "Są uwagi" */
 .uwagi-btn {
   background: none;
   border: none;
-  color: #b00020; /* czerwony */
+  color: #b00020;
   font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
 }
 
-/* Modal z uwagami */
 .modal {
   display: none;
   position: fixed;
@@ -344,7 +266,7 @@ table td:nth-child(11) {
 .modal-content p {
   margin: 0;
   font-size: 15px;
-  white-space: pre-wrap; /* jak wpiszesz enter w uwagach, będzie zachowany */
+  white-space: pre-wrap;
 }
 
 .modal-close {

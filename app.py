@@ -1,47 +1,37 @@
 from flask import Flask, render_template, request, redirect, url_for
 import json
+import os
 from datetime import date
 from typing import List, Dict
 
 app = Flask(__name__)
 
-import os
-
 DATA_FILE = "/var/tmp/przeglady.json"
 
-# jeśli plik nie istnieje (pierwsze uruchomienie) – skopiuj wersję z repo
 if not os.path.exists(DATA_FILE):
     if os.path.exists("przeglady.json"):
         with open("przeglady.json", "r", encoding="utf-8") as src:
             with open(DATA_FILE, "w", encoding="utf-8") as dst:
                 dst.write(src.read())
     else:
-        # brak pliku w repo -> utwórz pustą listę
         with open(DATA_FILE, "w", encoding="utf-8") as dst:
             dst.write("[]")
 
 
-# ---------- LOGIKA (z konsolowej wersji) ----------
-
-
-def parse_date(user_input: str) -> date:
+def parse_date(s: str) -> date:
     """
-    Przyjmuje datę w formacie:
-    - RRRR-MM-DD  (np. 2025-08-12)
-    - albo DD.MM.RRRR (np. 12.08.2025)
-    Zwraca obiekt date albo rzuca ValueError.
+    Akceptuje format:
+    - RRRR-MM-DD (ISO)
+    - DD.MM.RRRR
     """
-    s = user_input.strip()
+    s = s.strip()
 
     if "." in s:
         parts = s.split(".")
         if len(parts) == 3:
-            day_str, month_str, year_str = [p.strip() for p in parts]
+            d, m, y = parts
             try:
-                day = int(day_str)
-                month = int(month_str)
-                year = int(year_str)
-                return date(year, month, day)
+                return date(int(y), int(m), int(d))
             except ValueError:
                 pass
 
@@ -49,37 +39,22 @@ def parse_date(user_input: str) -> date:
         return date.fromisoformat(s)
     except ValueError:
         raise ValueError(
-            f"Nieprawidłowy format daty: '{user_input}'. "
-            "Użyj RRRR-MM-DD (np. 2025-08-12) albo DD.MM.RRRR (np. 12.08.2025)."
+            f"Nieprawidłowy format daty: '{s}'. Użyj RRRR-MM-DD lub DD.MM.RRRR."
         )
 
 
 def normalize_property_name(raw: str) -> str:
-    parts = raw.strip().split()
-    return " ".join(p.capitalize() for p in parts)
+    return " ".join(p.capitalize() for p in raw.strip().split())
+
+
+import calendar
+from datetime import date
 
 
 def add_months(d: date, months: int) -> date:
-    month = d.month - 1 + months
-    year = d.year + month // 12
-    month = month % 12 + 1
-
-    days_in_month = [
-        31,
-        29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ][month - 1]
-
-    day = min(d.day, days_in_month)
+    year = d.year + (d.month - 1 + months) // 12
+    month = (d.month - 1 + months) % 12 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
     return date(year, month, day)
 
 
@@ -96,14 +71,14 @@ def load_inspections() -> List[Dict]:
         return []
 
 
-def save_inspections(inspections: List[Dict]) -> None:
+def save_inspections(data: List[Dict]) -> None:
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(inspections, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def compute_next_and_status(last_date_str: str, freq_months: int) -> tuple[str, str]:
+def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
     last = parse_date(last_date_str)
-    next_dt = add_months(last, freq_months)
+    next_dt = add_months(last, freq)
     today = date.today()
 
     if next_dt < today:
@@ -116,73 +91,45 @@ def compute_next_and_status(last_date_str: str, freq_months: int) -> tuple[str, 
     return next_dt.isoformat(), status
 
 
-def get_unique_properties(inspections: List[Dict]) -> List[str]:
-    props = {
-        ins.get("nieruchomosc", "") for ins in inspections if ins.get("nieruchomosc")
-    }
-    return sorted(props)
+def get_unique(inspections: List[Dict], key: str) -> List[str]:
+    return sorted({i.get(key, "") for i in inspections if i.get(key)})
 
 
-def get_unique_names(inspections: List[Dict]) -> List[str]:
-    names = {ins.get("nazwa", "") for ins in inspections if ins.get("nazwa")}
-    return sorted(names)
-
-
-# ---------- ROUTES (widoki www) ----------
-
-
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
-@app.route("/")
 @app.route("/")
 def index():
     inspections = load_inspections()
 
-    # pobieramy aktywne filtry z URL
-    f_nieruch = request.args.get("nieruchomosc", "").strip()
-    f_nazwa = request.args.get("nazwa", "").strip()
+    # FILTRY
+    f_n = request.args.get("nieruchomosc", "").strip()
+    f_name = request.args.get("nazwa", "").strip()
     f_status = request.args.get("status", "").strip()
     f_uwagi = request.args.get("uwagi", "").strip()
 
-    # najpierw filtrujemy wyniki
     filtered = []
-    for i, ins in enumerate(inspections):
+    for idx, ins in enumerate(inspections):
+        opis = (ins.get("opis") or "").strip()
         ok = True
 
-        if f_nieruch and ins.get("nieruchomosc") != f_nieruch:
+        if f_n and ins.get("nieruchomosc") != f_n:
             ok = False
-
-        if f_nazwa and ins.get("nazwa") != f_nazwa:
+        if f_name and ins.get("nazwa") != f_name:
             ok = False
-
         if f_status and ins.get("status") != f_status:
             ok = False
-
-        opis = ins.get("opis", "").strip()
-        if f_uwagi == "tak" and not opis:
+        if f_uwagi == "tak" and opis.lower() in ("", "brak uwag"):
             ok = False
-        if f_uwagi == "nie" and opis:
+        if f_uwagi == "nie" and opis.lower() not in ("", "brak uwag"):
             ok = False
 
         if ok:
             row = ins.copy()
-            row["idx"] = i
+            row["idx"] = idx
             filtered.append(row)
 
-    # A TERAZ generujemy listy opcji *tylko z filtered* !!!
-    used_properties = sorted({ins["nieruchomosc"] for ins in filtered})
-    used_names = sorted({ins["nazwa"] for ins in filtered})
-    used_status = sorted({ins["status"] for ins in filtered})
-    used_uwagi = ["tak", "nie"]
+    # LISTY DO FILTRÓW — TYLKO Z PRZEFILTROWANYCH
+    used_properties = get_unique(filtered, "nieruchomosc")
+    used_names = get_unique(filtered, "nazwa")
+    used_status = get_unique(filtered, "status")
 
     return render_template(
         "index.html",
@@ -190,123 +137,120 @@ def index():
         used_properties=used_properties,
         used_names=used_names,
         used_status=used_status,
-        used_uwagi=used_uwagi,
+        used_uwagi=["tak", "nie"],
     )
 
 
-@app.route("/add", methods=["GET", "POST"])
-@app.route("/add", methods=["GET", "POST"])
-@app.route("/add", methods=["GET", "POST"])
-@app.route("/add", methods=["GET", "POST"])
-@app.route("/add", methods=["GET", "POST"])
+def extract_form():
+    """Czyści pobieranie danych z formularza i zwraca słownik."""
+    return {
+        "nazwa": request.form.get("nazwa", "").strip(),
+        "nieruchomosc": request.form.get("nieruchomosc", "").strip(),
+        "ostatnia_data": request.form.get("ostatnia_data", "").strip(),
+        "czestotliwosc_miesiace": request.form.get(
+            "czestotliwosc_miesiace", ""
+        ).strip(),
+        "opis": request.form.get("opis", "").strip(),
+        "firma": request.form.get("firma", "").strip(),
+        "telefon": request.form.get("telefon", "").strip(),
+        "email": request.form.get("email", "").strip(),
+    }
+
+
+def validate_form(form):
+    """Walidacja formularza. Zwraca errors{} lub pusty słownik."""
+    errors = {}
+
+    if not form["nazwa"]:
+        errors["nazwa"] = "Nazwa jest wymagana."
+
+    if not form["nieruchomosc"]:
+        errors["nieruchomosc"] = "Nieruchomość jest wymagana."
+
+    try:
+        parse_date(form["ostatnia_data"])
+    except ValueError as e:
+        errors["ostatnia_data"] = str(e)
+
+    try:
+        freq = int(form["czestotliwosc_miesiace"])
+        if freq <= 0:
+            raise ValueError
+    except ValueError:
+        errors["czestotliwosc_miesiace"] = (
+            "Częstotliwość musi być dodatnią liczbą całkowitą."
+        )
+
+    return errors
+
+
+def build_company_contacts(inspections):
+    """Zbiera mapę firma -> kontakt do autouzupełniania."""
+    result = {}
+    for ins in inspections:
+        firma = ins.get("firma")
+        if firma:
+            result[firma] = {
+                "telefon": ins.get("telefon", ""),
+                "email": ins.get("email", ""),
+            }
+    return result
+
+
 @app.route("/add", methods=["GET", "POST"])
 def add():
     inspections = load_inspections()
-    errors = {}
-
-    # dane formularza – startowo puste
-    form_data = {
-        "nazwa": "",
-        "nieruchomosc": "",
-        "ostatnia_data": "",
-        "czestotliwosc_miesiace": "",
-        "opis": "",
-        "firma": "",
-        "telefon": "",
-        "email": "",
-    }
-
-    if request.method == "POST":
-        # zbieranie danych z formularza
-        form_data["nazwa"] = request.form.get("nazwa", "").strip()
-        form_data["nieruchomosc"] = request.form.get("nieruchomosc", "").strip()
-        form_data["ostatnia_data"] = request.form.get("ostatnia_data", "").strip()
-        form_data["czestotliwosc_miesiace"] = request.form.get(
-            "czestotliwosc_miesiace", ""
-        ).strip()
-        form_data["opis"] = request.form.get("opis", "").strip()
-        form_data["firma"] = request.form.get("firma", "").strip()
-        form_data["telefon"] = request.form.get("telefon", "").strip()
-        form_data["email"] = request.form.get("email", "").strip()
-
-        # --- Walidacja ---
-
-        if not form_data["nazwa"]:
-            errors["nazwa"] = "Nazwa jest wymagana."
-
-        if not form_data["nieruchomosc"]:
-            errors["nieruchomosc"] = "Nieruchomość jest wymagana."
-
-        try:
-            parse_date(form_data["ostatnia_data"])
-        except ValueError as e:
-            errors["ostatnia_data"] = str(e)
-
-        try:
-            freq = int(form_data["czestotliwosc_miesiace"])
-            if freq <= 0:
-                raise ValueError
-        except ValueError:
-            errors["czestotliwosc_miesiace"] = (
-                "Częstotliwość musi być dodatnią liczbą całkowitą."
-            )
-
-        # --- Jeśli brak błędów, zapisujemy przegląd ---
-        if not errors:
-            property_name = normalize_property_name(form_data["nieruchomosc"])
-            next_date, status = compute_next_and_status(
-                form_data["ostatnia_data"], freq
-            )
-
-            inspection = {
-                "nazwa": form_data["nazwa"],
-                "nieruchomosc": property_name,
-                "ostatnia_data": form_data["ostatnia_data"],
-                "czestotliwosc_miesiace": freq,
-                "kolejna_data": next_date,
-                "status": status,
-                "opis": clean_empty_notes(form_data["opis"]),
-                "firma": form_data["firma"],
-                "telefon": form_data["telefon"],
-                "email": form_data["email"],
-            }
-
-            inspections.append(inspection)
-            save_inspections(inspections)
-            return redirect(url_for("index"))
-
-    # --- Przy GET lub przy błędach walidacji: przygotowanie podpowiedzi ---
-
-    # podpowiedzi do nazwy
-    used_names = get_unique_names(inspections)
-
-    # podpowiedzi do nieruchomości
-    used_properties = get_unique_properties(inspections)
-
-    # podpowiedzi do firmy
-    used_companies = sorted({ins["firma"] for ins in inspections if ins.get("firma")})
-
-    # mapa firma -> kontakt (tel, email) do JS
-    company_contacts = {}
-    for ins in inspections:
-        firma = ins.get("firma")
-        if not firma:
-            continue
-        company_contacts[firma] = {
-            "telefon": ins.get("telefon", ""),
-            "email": ins.get("email", ""),
+    form = (
+        extract_form()
+        if request.method == "POST"
+        else {
+            key: ""
+            for key in [
+                "nazwa",
+                "nieruchomosc",
+                "ostatnia_data",
+                "czestotliwosc_miesiace",
+                "opis",
+                "firma",
+                "telefon",
+                "email",
+            ]
         }
+    )
+
+    errors = validate_form(form) if request.method == "POST" else {}
+
+    if request.method == "POST" and not errors:
+        freq = int(form["czestotliwosc_miesiace"])
+        next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
+
+        inspections.append(
+            {
+                "nazwa": form["nazwa"],
+                "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
+                "ostatnia_data": form["ostatnia_data"],
+                "czestotliwosc_miesiace": freq,
+                "kolejna_data": next_dt,
+                "status": status,
+                "opis": clean_empty_notes(form["opis"]),
+                "firma": form["firma"],
+                "telefon": form["telefon"],
+                "email": form["email"],
+            }
+        )
+
+        save_inspections(inspections)
+        return redirect(url_for("index"))
 
     return render_template(
         "form.html",
         mode="add",
         errors=errors,
-        form=form_data,
-        used_names=used_names,
-        used_properties=used_properties,
-        used_companies=used_companies,
-        company_contacts=company_contacts,
-        idx=None,
+        form=form,
+        used_names=get_unique(inspections, "nazwa"),
+        used_properties=get_unique(inspections, "nieruchomosc"),
+        used_companies=get_unique(inspections, "firma"),
+        company_contacts=build_company_contacts(inspections),
     )
 
 
@@ -314,100 +258,59 @@ def add():
 def edit(idx: int):
     inspections = load_inspections()
 
-    # walidacja indexu
-    if idx < 0 or idx >= len(inspections):
+    if not (0 <= idx < len(inspections)):
         return "Nie znaleziono przeglądu.", 404
 
     ins = inspections[idx]
 
-    errors = {}
-    form_data = {
-        "nazwa": ins.get("nazwa", ""),
-        "nieruchomosc": ins.get("nieruchomosc", ""),
-        "ostatnia_data": ins.get("ostatnia_data", ""),
-        "czestotliwosc_miesiace": str(ins.get("czestotliwosc_miesiace", "")),
-        "opis": ins.get("opis", ""),
-        "firma": ins.get("firma", ""),
-        "telefon": ins.get("telefon", ""),
-        "email": ins.get("email", ""),
-    }
-
     if request.method == "POST":
-        form_data["nazwa"] = request.form.get("nazwa", "").strip()
-        form_data["nieruchomosc"] = request.form.get("nieruchomosc", "").strip()
-        form_data["ostatnia_data"] = request.form.get("ostatnia_data", "").strip()
-        form_data["czestotliwosc_miesiace"] = request.form.get(
-            "czestotliwosc_miesiace", ""
-        ).strip()
-        form_data["opis"] = request.form.get("opis", "").strip()
-        form_data["firma"] = request.form.get("firma", "").strip()
-        form_data["telefon"] = request.form.get("telefon", "").strip()
-        form_data["email"] = request.form.get("email", "").strip()
-
-        if not form_data["nazwa"]:
-            errors["nazwa"] = "Nazwa jest wymagana."
-        if not form_data["nieruchomosc"]:
-            errors["nieruchomosc"] = "Nieruchomość jest wymagana."
-
-        try:
-            parse_date(form_data["ostatnia_data"])
-        except ValueError as e:
-            errors["ostatnia_data"] = str(e)
-
-        try:
-            freq = int(form_data["czestotliwosc_miesiace"])
-            if freq <= 0:
-                raise ValueError
-        except ValueError:
-            errors["czestotliwosc_miesiace"] = (
-                "Częstotliwość musi być dodatnią liczbą całkowitą."
-            )
+        form = extract_form()
+        errors = validate_form(form)
 
         if not errors:
-            property_name = normalize_property_name(form_data["nieruchomosc"])
-            next_date, status = compute_next_and_status(
-                form_data["ostatnia_data"], freq
-            )
+            freq = int(form["czestotliwosc_miesiace"])
+            next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
 
-            ins["nazwa"] = form_data["nazwa"]
-            ins["nieruchomosc"] = property_name
-            ins["ostatnia_data"] = form_data["ostatnia_data"]
-            ins["czestotliwosc_miesiace"] = freq
-            ins["kolejna_data"] = next_date
-            ins["status"] = status
-            ins["opis"] = clean_empty_notes(form_data["opis"])
-            ins["firma"] = form_data["firma"]
-            ins["telefon"] = form_data["telefon"]
-            ins["email"] = form_data["email"]
+            ins.update(
+                {
+                    "nazwa": form["nazwa"],
+                    "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
+                    "ostatnia_data": form["ostatnia_data"],
+                    "czestotliwosc_miesiace": freq,
+                    "kolejna_data": next_dt,
+                    "status": status,
+                    "opis": clean_empty_notes(form["opis"]),
+                    "firma": form["firma"],
+                    "telefon": form["telefon"],
+                    "email": form["email"],
+                }
+            )
 
             save_inspections(inspections)
             return redirect(url_for("index"))
 
-    # podpowiedzi (takie same jak przy dodawaniu)
-    used_names = get_unique_names(inspections)
-    used_properties = get_unique_properties(inspections)
-    used_companies = sorted({ins["firma"] for ins in inspections if ins.get("firma")})
-
-    company_contacts = {}
-    for item in inspections:
-        firma = item.get("firma")
-        if not firma:
-            continue
-        company_contacts[firma] = {
-            "telefon": item.get("telefon", ""),
-            "email": item.get("email", ""),
+    else:
+        form = {
+            "nazwa": ins.get("nazwa", ""),
+            "nieruchomosc": ins.get("nieruchomosc", ""),
+            "ostatnia_data": ins.get("ostatnia_data", ""),
+            "czestotliwosc_miesiace": str(ins.get("czestotliwosc_miesiace", "")),
+            "opis": ins.get("opis", ""),
+            "firma": ins.get("firma", ""),
+            "telefon": ins.get("telefon", ""),
+            "email": ins.get("email", ""),
         }
+        errors = {}
 
     return render_template(
         "form.html",
         mode="edit",
         errors=errors,
-        form=form_data,
-        used_names=used_names,
-        used_properties=used_properties,
-        used_companies=used_companies,
-        company_contacts=company_contacts,
-        idx=idx,
+        form=form,
+        used_names=get_unique(inspections, "nazwa"),
+        used_properties=get_unique(inspections, "nieruchomosc"),
+        used_companies=get_unique(inspections, "firma"),
+        company_contacts=build_company_contacts(inspections),
     )
 
 
@@ -415,7 +318,7 @@ def edit(idx: int):
 def delete(idx: int):
     inspections = load_inspections()
 
-    if idx < 0 or idx >= len(inspections):
+    if not (0 <= idx < len(inspections)):
         return "Nie znaleziono przeglądu.", 404
 
     del inspections[idx]
