@@ -93,6 +93,13 @@ tr:nth-child(even) {
   margin-bottom: 10px;
 }
 
+.filters {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
 .form {
   margin-top: 18px; /* było 15px */
 }
@@ -290,4 +297,62 @@ table th:nth-child(11),
 table td:nth-child(11) {
   width: 10px; /* Akcje */
   text-align: center;
+}
+
+/* Przycisk "Są uwagi" */
+.uwagi-btn {
+  background: none;
+  border: none;
+  color: #b00020; /* czerwony */
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* Modal z uwagami */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 20px 24px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.modal-content p {
+  margin: 0;
+  font-size: 15px;
+  white-space: pre-wrap; /* jak wpiszesz enter w uwagach, będzie zachowany */
+}
+
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
 }
