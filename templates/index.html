@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Nadzorca przeglądów</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Nadzorca przeglądów Kamila (wersja Alpha 1.0)</h1>
+      <div class="meta">
+        Wyświetlane są wszystkie przeglądy, posortowane według
+        <strong>najbliższej daty kolejnego przeglądu</strong>.
+      </div>
+
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+        "
+      >
+        <h2>Lista przeglądów</h2>
+        <a href="{{ url_for('add') }}" class="btn btn-primary"
+          >➕ Dodaj przegląd</a
+        >
+      </div>
+
+      {% if inspections %}
+      <table>
+        <thead>
+          <tr>
+            <th>Lp.</th>
+            <th>Nieruchomość</th>
+            <th>Nazwa</th>
+            <th>Firma</th>
+            <th>Kontakt</th>
+            <th>Ostatnia data</th>
+            <th>Częstotliwość (mies.)</th>
+            <th>Kolejna data</th>
+            <th>Status</th>
+            <th>Opis</th>
+            <th>Akcje</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for ins in inspections %} {% set status = ins.status %} {% if
+          status == "Zaległy" %} {% set status_class = "status-zalegly" %} {%
+          set badge_class = "badge badge-zalegly" %} {% elif status ==
+          "Nadchodzące" %} {% set status_class = "status-nadchodzace" %} {% set
+          badge_class = "badge badge-nadchodzace" %} {% else %} {% set
+          status_class = "status-aktualne" %} {% set badge_class = "badge
+          badge-aktualne" %} {% endif %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ ins.nieruchomosc }}</td>
+            <td>{{ ins.nazwa }}</td>
+
+            <!-- Firma -->
+            <td>{{ ins.firma or "Brak danych" }}</td>
+
+            <!-- Kontakt -->
+            <td class="contact-cell">
+              {% set tel = ins.telefon %} {% set mail = ins.email %} {% if tel
+              or mail %}
+              <div class="contact-wrapper">
+                {% if tel %}
+                <div class="contact-phone">
+                  <span class="contact-phone-icon">📞</span>
+                  <span class="contact-phone-number">{{ tel }}</span>
+                </div>
+                {% endif %} {% if mail %}
+                <div class="contact-email">
+                  <span class="contact-email-icon">✉️</span>
+                  <span class="contact-email-text">{{ mail }}</span>
+                </div>
+                {% endif %}
+              </div>
+              {% else %}
+              <div class="contact-none">Brak danych</div>
+              {% endif %}
+            </td>
+
+            <!-- Ostatnia data (DD.MM.RRRR) -->
+            <td>
+              {% if ins.ostatnia_data %} {{ ins.ostatnia_data[8:10] }}.{{
+              ins.ostatnia_data[5:7] }}.{{ ins.ostatnia_data[0:4] }} {% else %}
+              - {% endif %}
+            </td>
+
+            <td>{{ ins.czestotliwosc_miesiace }}</td>
+
+            <!-- Kolejna data (DD.MM.RRRR) -->
+            <td>
+              {% if ins.kolejna_data %} {{ ins.kolejna_data[8:10] }}.{{
+              ins.kolejna_data[5:7] }}.{{ ins.kolejna_data[0:4] }} {% else %} -
+              {% endif %}
+            </td>
+
+            <td class="{{ status_class }}">
+              <span class="{{ badge_class }}">{{ ins.status }}</span>
+            </td>
+
+            <td>{{ ins.opis or "Brak uwag" }}</td>
+
+            <td>
+              <a href="#">✏️</a>
+              <a href="#">🗑️</a>
+            </td>
+          </tr>
+
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">Brak przeglądów w pliku <code>przeglady.json</code>.</p>
+      {% endif %}
+    </div>
+  </body>
+</html>

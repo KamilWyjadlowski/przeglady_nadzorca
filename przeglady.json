@@ -1,0 +1,86 @@
+[
+  {
+    "nazwa": "Budowlany roczny",
+    "nieruchomosc": "Bydgoszcz Magazynowa 13",
+    "ostatnia_data": "11.11.2025",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2026-11-11",
+    "status": "Aktualne",
+    "opis": "Brak uwag"
+  },
+  {
+    "nazwa": "Przegląd pięcioletni",
+    "nieruchomosc": "Bydgoszcz Magazynowa 13",
+    "ostatnia_data": "20.11.2025",
+    "czestotliwosc_miesiace": 60,
+    "kolejna_data": "2030-11-20",
+    "status": "Aktualne",
+    "opis": "Brak uwag"
+  },
+  {
+    "nazwa": "Przegląd elektryczny",
+    "nieruchomosc": "Bydgoszcz Magazynowa 13",
+    "ostatnia_data": "14.10.2025",
+    "czestotliwosc_miesiace": 6,
+    "kolejna_data": "2026-04-14",
+    "status": "Aktualne",
+    "opis": "Brak uwag"
+  },
+  {
+    "nazwa": "Przegląd elektryczny",
+    "nieruchomosc": "Katowice Nowa 10",
+    "ostatnia_data": "2025-11-13",
+    "czestotliwosc_miesiace": 60,
+    "kolejna_data": "2030-11-13",
+    "status": "Aktualne",
+    "opis": "Brak uwag"
+  },
+  {
+    "nazwa": "Przegląd elektryczny",
+    "nieruchomosc": "Katowice Nowa 10",
+    "ostatnia_data": "2025-10-15",
+    "czestotliwosc_miesiace": 13,
+    "kolejna_data": "2026-11-15",
+    "status": "Aktualne",
+    "opis": "Brak uwag",
+    "firma": "Wójek",
+    "telefon": "",
+    "email": ""
+  },
+  {
+    "nazwa": "Przegląd pięcioletni",
+    "nieruchomosc": "Katowice Nowa 10",
+    "ostatnia_data": "2025-11-10",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2026-11-10",
+    "status": "Aktualne",
+    "opis": "Brak uwag",
+    "firma": "Wójek",
+    "telefon": "733222991",
+    "email": ""
+  },
+  {
+    "nazwa": "Przegląd elektryczny",
+    "nieruchomosc": "Katowice Nowa 10",
+    "ostatnia_data": "2025-11-04",
+    "czestotliwosc_miesiace": 16,
+    "kolejna_data": "2027-03-04",
+    "status": "Aktualne",
+    "opis": "Brak uwag",
+    "firma": "Wójek",
+    "telefon": "733222991",
+    "email": "loool@lool.com"
+  },
+  {
+    "nazwa": "Przegląd pięcioletni",
+    "nieruchomosc": "Katowice Nowa 10",
+    "ostatnia_data": "2023-12-12",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2024-12-12",
+    "status": "Zaległy",
+    "opis": "Brak uwag",
+    "firma": "Wójek",
+    "telefon": "733222991",
+    "email": "loool@lool.com"
+  }
+]

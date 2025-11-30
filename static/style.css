@@ -1,0 +1,293 @@
+@import url("https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css");
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f5f5f5;
+  margin: 20px;
+  font-size: 16px; /* NOWE – większa baza */
+}
+
+.container {
+  width: 90%;
+  max-width: 90%;
+  margin: 0 auto;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 60px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 18px;
+}
+
+th,
+td {
+  border-bottom: 1px solid #000000;
+  padding: 30px 15px;
+  text-align: left;
+  font-size: 20px;
+}
+
+th {
+  background: #00000060;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background: #00000020;
+}
+
+.status-zalegly {
+  color: #b00020;
+  font-weight: 600;
+}
+
+.status-nadchodzace {
+  color: #e69100;
+  font-weight: 600;
+}
+
+.status-aktualne {
+  color: #1b8a2f;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 8px; /* było 2px 6px */
+  border-radius: 4px;
+  font-size: 13px; /* było 11px */
+}
+
+.badge-zalegly {
+  background: #ffe5e9;
+  color: #b00020;
+}
+
+.badge-nadchodzace {
+  background: #fff3d1;
+  color: #a86b00;
+}
+
+.badge-aktualne {
+  background: #e3f6e8;
+  color: #1b8a2f;
+}
+
+.empty {
+  margin-top: 15px;
+  font-size: 15px; /* było 14px */
+}
+
+.meta {
+  font-size: 14px; /* było 12px */
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.form {
+  margin-top: 18px; /* było 15px */
+}
+
+.field {
+  margin-bottom: 14px; /* było 12px */
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 14px; /* było 13px */
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px; /* było 6px 8px */
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 15px; /* było 13px */
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.error {
+  color: #b00020;
+  font-size: 13px; /* było 12px */
+  margin-top: 2px;
+}
+
+.hint {
+  font-size: 13px; /* było 11px */
+  color: #777;
+  margin-top: 3px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 5px; /* było 1px 4px */
+  border-radius: 3px;
+  background: #f0f0f0;
+  margin-right: 3px;
+}
+
+.actions {
+  margin-top: 18px; /* było 15px */
+}
+
+.btn {
+  display: inline-block;
+  padding: 8px 14px; /* było 6px 10px */
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  font-size: 14px; /* było 13px */
+  cursor: pointer;
+  text-decoration: none;
+  color: #333;
+}
+
+.btn-primary {
+  background: #0066cc;
+  color: #fff;
+  border-color: #0055aa;
+}
+
+.btn + .btn {
+  margin-left: 8px;
+}
+
+.date-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* było 6px */
+}
+
+.date-input-wrapper input[type="text"] {
+  flex: 1;
+}
+
+.date-picker-btn {
+  padding: 8px 10px; /* było 6px 8px */
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 16px; /* było 14px */
+}
+
+.date-picker-btn:hover {
+  background: #eee;
+}
+
+.contact-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* pion */
+  align-items: center; /* poziom */
+  width: 100%;
+  height: 100%;
+}
+
+.contact-phone,
+.contact-email {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-phone {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.contact-email {
+  font-size: 12px;
+  color: #444;
+  word-break: break-all;
+}
+
+.contact-phone-icon,
+.contact-email-icon {
+  margin-right: 4px;
+}
+
+.contact-none {
+  font-size: 13px;
+  color: #999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* szerokości wybranych kolumn */
+table th:nth-child(1),
+table td:nth-child(1) {
+  width: 10px; /* Lp. */
+  text-align: center;
+}
+table th:nth-child(2),
+table td:nth-child(2) {
+  width: 10%; /* Nieruchomość */
+  text-align: center;
+}
+table th:nth-child(3),
+table td:nth-child(3) {
+  width: 20%; /* Nazwa */
+  text-align: center;
+}
+table th:nth-child(4),
+table td:nth-child(4) {
+  width: 10%; /* Firma */
+  text-align: center;
+}
+table th:nth-child(5),
+table td:nth-child(5) {
+  width: 20%; /* Kontakt */
+  text-align: center;
+}
+table th:nth-child(6),
+table td:nth-child(6) {
+  width: 5%; /* Ostatnia data */
+  text-align: center;
+}
+table th:nth-child(7),
+table td:nth-child(7) {
+  width: 10%; /* Częstotliwość */
+  text-align: center;
+}
+table th:nth-child(8),
+table td:nth-child(8) {
+  width: 5%; /* Kolejna data */
+  text-align: center;
+}
+table th:nth-child(9),
+table td:nth-child(9) {
+  width: 5%; /* Status */
+  text-align: center;
+}
+table th:nth-child(10),
+table td:nth-child(10) {
+  width: 5%; /* Opis */
+  text-align: center;
+}
+table th:nth-child(11),
+table td:nth-child(11) {
+  width: 10px; /* Akcje */
+  text-align: center;
+}
