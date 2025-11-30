@@ -128,15 +128,24 @@ def get_unique_names(inspections: List[Dict]) -> List[str]:
 @app.route("/")
 @app.route("/")
 @app.route("/")
+@app.route("/")
 def index():
     inspections = load_inspections()
-    # sortujemy po dacie kolejnego przeglądu rosnąco
-    inspections_sorted = sorted(
-        inspections, key=lambda ins: ins.get("kolejna_data", "")
-    )
-    return render_template("index.html", inspections=inspections_sorted)
+
+    # przygotowujemy WIERSZE z prawdziwymi indeksami
+    rows = []
+    for i, ins in enumerate(inspections):
+        row = ins.copy()
+        row["idx"] = i  # PRAWDZIWY indeks w JSON-ie
+        rows.append(row)
+
+    # jeśli chcesz — tutaj możesz robić sortowanie rows
+    # rows = sorted(rows, key=lambda x: x["nazwa"])
+
+    return render_template("index.html", inspections=rows)
 
 
+@app.route("/add", methods=["GET", "POST"])
 @app.route("/add", methods=["GET", "POST"])
 @app.route("/add", methods=["GET", "POST"])
 @app.route("/add", methods=["GET", "POST"])
@@ -173,21 +182,17 @@ def add():
 
         # --- Walidacja ---
 
-        # nazwa
         if not form_data["nazwa"]:
             errors["nazwa"] = "Nazwa jest wymagana."
 
-        # nieruchomość
         if not form_data["nieruchomosc"]:
             errors["nieruchomosc"] = "Nieruchomość jest wymagana."
 
-        # data
         try:
             parse_date(form_data["ostatnia_data"])
         except ValueError as e:
             errors["ostatnia_data"] = str(e)
 
-        # częstotliwość
         try:
             freq = int(form_data["czestotliwosc_miesiace"])
             if freq <= 0:
@@ -223,16 +228,14 @@ def add():
 
     # --- Przy GET lub przy błędach walidacji: przygotowanie podpowiedzi ---
 
-    # propozycje do nazwy
+    # podpowiedzi do nazwy
     used_names = get_unique_names(inspections)
 
-    # propozycje do nieruchomości
-    used_properties = sorted(
-        set(i["nieruchomosc"] for i in inspections if i.get("nieruchomosc"))
-    )
+    # podpowiedzi do nieruchomości
+    used_properties = get_unique_properties(inspections)
 
-    # propozycje do firmy
-    used_companies = sorted(set(i["firma"] for i in inspections if i.get("firma")))
+    # podpowiedzi do firmy
+    used_companies = sorted({ins["firma"] for ins in inspections if ins.get("firma")})
 
     # mapa firma -> kontakt (tel, email) do JS
     company_contacts = {}
@@ -254,6 +257,7 @@ def add():
         used_properties=used_properties,
         used_companies=used_companies,
         company_contacts=company_contacts,
+        idx=None,
     )
 
 
@@ -261,10 +265,12 @@ def add():
 def edit(idx: int):
     inspections = load_inspections()
 
+    # walidacja indexu
     if idx < 0 or idx >= len(inspections):
         return "Nie znaleziono przeglądu.", 404
 
     ins = inspections[idx]
+
     errors = {}
     form_data = {
         "nazwa": ins.get("nazwa", ""),
@@ -272,6 +278,9 @@ def edit(idx: int):
         "ostatnia_data": ins.get("ostatnia_data", ""),
         "czestotliwosc_miesiace": str(ins.get("czestotliwosc_miesiace", "")),
         "opis": ins.get("opis", ""),
+        "firma": ins.get("firma", ""),
+        "telefon": ins.get("telefon", ""),
+        "email": ins.get("email", ""),
     }
 
     if request.method == "POST":
@@ -282,6 +291,9 @@ def edit(idx: int):
             "czestotliwosc_miesiace", ""
         ).strip()
         form_data["opis"] = request.form.get("opis", "").strip()
+        form_data["firma"] = request.form.get("firma", "").strip()
+        form_data["telefon"] = request.form.get("telefon", "").strip()
+        form_data["email"] = request.form.get("email", "").strip()
 
         if not form_data["nazwa"]:
             errors["nazwa"] = "Nazwa jest wymagana."
@@ -315,16 +327,37 @@ def edit(idx: int):
             ins["kolejna_data"] = next_date
             ins["status"] = status
             ins["opis"] = clean_empty_notes(form_data["opis"])
+            ins["firma"] = form_data["firma"]
+            ins["telefon"] = form_data["telefon"]
+            ins["email"] = form_data["email"]
 
             save_inspections(inspections)
             return redirect(url_for("index"))
+
+    # podpowiedzi (takie same jak przy dodawaniu)
+    used_names = get_unique_names(inspections)
+    used_properties = get_unique_properties(inspections)
+    used_companies = sorted({ins["firma"] for ins in inspections if ins.get("firma")})
+
+    company_contacts = {}
+    for item in inspections:
+        firma = item.get("firma")
+        if not firma:
+            continue
+        company_contacts[firma] = {
+            "telefon": item.get("telefon", ""),
+            "email": item.get("email", ""),
+        }
 
     return render_template(
         "form.html",
         mode="edit",
         errors=errors,
         form=form_data,
-        used_names=get_unique_names(inspections),
+        used_names=used_names,
+        used_properties=used_properties,
+        used_companies=used_companies,
+        company_contacts=company_contacts,
         idx=idx,
     )
 

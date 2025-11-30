@@ -108,9 +108,31 @@
 
             <td>{{ ins.opis or "Brak uwag" }}</td>
 
-            <td>
-              <a href="#">✏️</a>
-              <a href="#">🗑️</a>
+            <td class="actions-cell">
+              <!-- Edycja -->
+              <a
+                href="{{ url_for('edit', idx=ins.idx) }}"
+                class="action-btn"
+                title="Edytuj"
+              >
+                ✏️
+              </a>
+
+              <!-- Usuwanie -->
+              <form
+                method="POST"
+                action="{{ url_for('delete', idx=ins.idx) }}"
+                onsubmit="return confirm('Na pewno usunąć ten przegląd?');"
+                style="display: inline"
+              >
+                <button
+                  type="submit"
+                  class="action-btn action-delete"
+                  title="Usuń"
+                >
+                  🗑
+                </button>
+              </form>
             </td>
           </tr>
 
