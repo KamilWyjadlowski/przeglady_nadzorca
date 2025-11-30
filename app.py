@@ -5,7 +5,20 @@ from typing import List, Dict
 
 app = Flask(__name__)
 
-DATA_FILE = "przeglady.json"
+import os
+
+DATA_FILE = "/var/tmp/przeglady.json"
+
+# jeśli plik nie istnieje (pierwsze uruchomienie) – skopiuj wersję z repo
+if not os.path.exists(DATA_FILE):
+    if os.path.exists("przeglady.json"):
+        with open("przeglady.json", "r", encoding="utf-8") as src:
+            with open(DATA_FILE, "w", encoding="utf-8") as dst:
+                dst.write(src.read())
+    else:
+        # brak pliku w repo -> utwórz pustą listę
+        with open(DATA_FILE, "w", encoding="utf-8") as dst:
+            dst.write("[]")
 
 
 # ---------- LOGIKA (z konsolowej wersji) ----------
