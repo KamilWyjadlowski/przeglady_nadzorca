@@ -6,7 +6,7 @@ from typing import List, Dict
 
 app = Flask(__name__)
 
-DATA_FILE = "/var/tmp/przeglady.json"
+DATA_FILE = "przeglady.json"
 
 if not os.path.exists(DATA_FILE):
     if os.path.exists("przeglady.json"):
