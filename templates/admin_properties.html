@@ -30,6 +30,7 @@
             <tr>
               <th>Nieruchomość</th>
               <th>Przeglądy</th>
+              <th>Właściciel</th>
               <th>Udostępnione</th>
             </tr>
           </thead>
@@ -38,6 +39,15 @@
             <tr>
               <td>{{ prop.name }}</td>
               <td>{{ prop.count }}</td>
+              <td>
+                <select name="owner__{{ prop.slug }}">
+                  {% for u in all_users %}
+                  <option value="{{ u.username }}" {% if prop.owner == u.username %}selected{% endif %}>
+                    {{ u.username }}{% if u.role == "admin" %} (admin){% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+              </td>
               <td>
                 <div class="checkbox-list">
                   {% for u in all_users %}

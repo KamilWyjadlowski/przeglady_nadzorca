@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, g
 import json
 import os
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
 from typing import List, Dict, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,6 +11,7 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 DATA_FILE = "przeglady.json"
 USERS_FILE = "users.json"
 PROPERTY_ACCESS_FILE = "property_access.json"
+AUDIT_FILE = "audit.log"
 
 if not os.path.exists(DATA_FILE):
     if os.path.exists("przeglady.json"):
@@ -28,6 +29,10 @@ if not os.path.exists(USERS_FILE):
 if not os.path.exists(PROPERTY_ACCESS_FILE):
     with open(PROPERTY_ACCESS_FILE, "w", encoding="utf-8") as dst:
         dst.write("{}")
+
+if not os.path.exists(AUDIT_FILE):
+    with open(AUDIT_FILE, "w", encoding="utf-8") as dst:
+        dst.write("")
 
 
 def parse_date(s: str) -> date:
@@ -73,6 +78,21 @@ def add_months(d: date, months: int) -> date:
 def clean_empty_notes(text: str) -> str:
     text = text.strip()
     return text if text else "Brak uwag"
+
+
+def log_event(action: str, user: str, details: Dict):
+    """Zapis prostego logu audytowego w formacie JSON Lines."""
+    entry = {
+        "ts": datetime.utcnow().isoformat() + "Z",
+        "action": action,
+        "user": user,
+        "details": details,
+    }
+    try:
+        with open(AUDIT_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass  # nie blokuj głównego działania przy błędzie logowania
 
 
 def load_inspections() -> List[Dict]:
@@ -448,6 +468,11 @@ def add():
         if is_admin(g.user):
             prop_access[new_item["nieruchomosc"]] = form.get("property_shared_with", [])
             save_property_access(prop_access)
+        log_event(
+            "add_inspection",
+            username,
+            {"property": new_item["nieruchomosc"], "name": new_item["nazwa"], "owner": new_item["owner"]},
+        )
         return redirect(url_for("index"))
 
     return render_template(
@@ -486,6 +511,7 @@ def edit(idx: int):
         if not errors:
             freq = int(form["czestotliwosc_miesiace"])
             next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
+            before = ins.copy()
 
             new_owner = form.get("owner") or ins.get("owner") or username
             if not is_admin(g.user):
@@ -521,6 +547,16 @@ def edit(idx: int):
                 prop_access.pop(ins.get("nieruchomosc"), None)
                 prop_access[ins["nieruchomosc"]] = form.get("property_shared_with", [])
                 save_property_access(prop_access)
+            log_event(
+                "edit_inspection",
+                username,
+                {
+                    "property": ins["nieruchomosc"],
+                    "name": ins["nazwa"],
+                    "owner_before": before.get("owner"),
+                    "owner_after": ins.get("owner"),
+                },
+            )
             return redirect(url_for("index"))
 
     else:
@@ -569,6 +605,11 @@ def delete(idx: int):
 
     del all_inspections[idx]
     save_inspections(all_inspections)
+    log_event(
+        "delete_inspection",
+        username,
+        {"property": ins.get("nieruchomosc"), "name": ins.get("nazwa"), "owner": ins.get("owner")},
+    )
     return redirect(url_for("index"))
 
 
@@ -596,16 +637,39 @@ def admin_properties():
 
     if request.method == "POST":
         for prop in properties:
+            new_owner = (
+                request.form.get(f"owner__{prop['slug']}", "").strip()
+                or prop.get("owner", "")
+            )
             shared_with = [
                 u.strip() for u in request.form.getlist(f"shared_with__{prop['slug']}") if u.strip()
             ]
 
-            # zapisz udostępnienia (właściciela nie zmieniamy tutaj)
+            # zaktualizuj ownera we wszystkich przeglądach tej nieruchomości
+            for ins in inspections:
+                if ins.get("nieruchomosc") == prop["name"]:
+                    ins["owner"] = new_owner
+
+            # zapisz udostępnienia
             prop_access[prop["name"]] = shared_with
 
         save_inspections(inspections)
         save_property_access(prop_access)
         g.property_access = prop_access
+        log_event(
+            "update_property_access",
+            g.user["username"],
+            {
+                "properties": [
+                    {
+                        "property": prop["name"],
+                        "owner": prop.get("owner"),
+                        "shared_with": prop_access.get(prop["name"], []),
+                    }
+                    for prop in properties
+                ]
+            },
+        )
         return redirect(url_for("admin_properties"))
 
     return render_template(
@@ -637,6 +701,11 @@ def login():
             try:
                 if check_password_hash(user.get("password", ""), password):
                     session["username"] = user["username"]
+                    log_event(
+                        "login",
+                        user["username"],
+                        {"ip": request.remote_addr, "next": request.args.get("next")},
+                    )
                     next_url = request.args.get("next") or url_for("index")
                     return redirect(next_url)
             except ValueError:
@@ -695,6 +764,7 @@ def register():
             )
             save_users(users)
             session["username"] = form["username"]
+            log_event("register", form["username"], {"ip": request.remote_addr})
             return redirect(url_for("index"))
 
     return render_template("register.html", errors=errors, form=form)
