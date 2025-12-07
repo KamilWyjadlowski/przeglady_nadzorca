@@ -76,6 +76,22 @@
           </select>
         </div>
 
+
+        <div>
+          <label>Segment</label>
+          <select name="segment">
+            <option value="">(wszystkie)</option>
+            {% for seg in used_segments %}
+            <option
+              value="{{ seg }}"
+              {% if request.args.get('segment') == seg %}selected{% endif %}
+            >
+              {{ seg }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
       </form>
 
       {% if inspections %}
@@ -85,6 +101,8 @@
             <th>Lp.</th>
             <th>Nieruchomość</th>
             <th>Nazwa</th>
+
+            <th>Segment</th>
             <th>Firma</th>
             <th>Kontakt</th>
             <th>Ostatnia data</th>
@@ -114,6 +132,9 @@
             <td>{{ loop.index }}</td>
             <td>{{ ins.nieruchomosc }}</td>
             <td>{{ ins.nazwa }}</td>
+
+
+            <td>{{ ins.segment or "-" }}</td>
 
             <td>{{ ins.firma or "Brak danych" }}</td>
 

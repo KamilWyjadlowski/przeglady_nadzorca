@@ -64,6 +64,21 @@
         </div>
 
         <div class="field">
+  <label for="segment">Segment nieruchomości</label>
+  <select id="segment" name="segment">
+    <option value="">(wybierz)</option>
+    <option value="Detal" {% if form.segment == "Detal" %}selected{% endif %}>Detal</option>
+    <option value="Hurt" {% if form.segment == "Hurt" %}selected{% endif %}>Hurt</option>
+  </select>
+
+  {% if errors.segment %}
+  <div class="error">{{ errors.segment }}</div>
+  {% endif %}
+</div>
+
+
+
+        <div class="field">
           <label for="firma">Firma (opcjonalnie)</label>
           <input
             type="text"

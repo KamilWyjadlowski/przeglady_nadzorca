@@ -1,1 +1,54 @@
-[]
+[
+  {
+    "nazwa": "aaa",
+    "nieruchomosc": "Dsfgsdf",
+    "ostatnia_data": "2023-11-30",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2024-11-30",
+    "status": "Zaległy",
+    "opis": "asdgasga",
+    "firma": "aaasdfdfsg",
+    "telefon": "asdf",
+    "email": "asdf@laskfng.pl",
+    "segment": "Hurt"
+  },
+  {
+    "nazwa": "aaa",
+    "nieruchomosc": "Asdg",
+    "ostatnia_data": "2024-12-01",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2025-12-01",
+    "status": "Zaległy",
+    "opis": "asdga",
+    "firma": "aaasdfdfsg",
+    "telefon": "asdf",
+    "email": "asdf@laskfng.pl",
+    "segment": ""
+  },
+  {
+    "nazwa": "asdf",
+    "nieruchomosc": "Aaa",
+    "ostatnia_data": "2024-12-31",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2025-12-31",
+    "status": "Nadchodzące",
+    "opis": "sadza",
+    "firma": "zxcvz",
+    "telefon": "",
+    "email": "zzxcv@asfs.pl",
+    "segment": "Hurt"
+  },
+  {
+    "nazwa": "aaa",
+    "nieruchomosc": "Aaa",
+    "ostatnia_data": "2025-10-28",
+    "czestotliwosc_miesiace": 12,
+    "kolejna_data": "2026-10-28",
+    "status": "Aktualne",
+    "opis": "Brak uwag",
+    "firma": "zxcvz",
+    "telefon": "asdf",
+    "email": "asdf@laskfng.pl",
+    "segment": ""
+  }
+]

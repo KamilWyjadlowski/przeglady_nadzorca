@@ -104,6 +104,8 @@ def index():
     f_name = request.args.get("nazwa", "").strip()
     f_status = request.args.get("status", "").strip()
     f_uwagi = request.args.get("uwagi", "").strip()
+    # NOWE – filtr po segmencie (Detal / Hurt)
+    f_segment = request.args.get("segment", "").strip()
 
     filtered = []
     for idx, ins in enumerate(inspections):
@@ -120,6 +122,9 @@ def index():
             ok = False
         if f_uwagi == "nie" and opis.lower() not in ("", "brak uwag"):
             ok = False
+        # NOWE – filtr po segmencie
+        if f_segment and ins.get("segment") != f_segment:
+            ok = False
 
         if ok:
             row = ins.copy()
@@ -130,6 +135,34 @@ def index():
     used_properties = get_unique(filtered, "nieruchomosc")
     used_names = get_unique(filtered, "nazwa")
     used_status = get_unique(filtered, "status")
+    used_segments = get_unique(filtered, "segment")
+
+    # SORTOWANIE:
+    # 1. nieruchomość alfabetycznie
+    # 2. status (Zaległy -> Nadchodzące -> Aktualne)
+    # 3. kolejna_data rosnąco
+    # 4. nazwa przeglądu alfabetycznie
+    status_order = {
+        "Zaległy": 0,
+        "Nadchodzące": 1,
+        "Aktualne": 2,
+    }
+
+    def safe_date(d):
+        """Zamienia '2025-12-10' na date, przy braku/śmieciu daje bardzo odległą przyszłość."""
+        try:
+            return date.fromisoformat(d)
+        except Exception:
+            return date(9999, 12, 31)
+
+    filtered.sort(
+        key=lambda ins: (
+            ins.get("nieruchomosc", ""),
+            status_order.get(ins.get("status"), 99),
+            safe_date(ins.get("kolejna_data")),
+            ins.get("nazwa", ""),
+        )
+    )
 
     return render_template(
         "index.html",
@@ -138,6 +171,7 @@ def index():
         used_names=used_names,
         used_status=used_status,
         used_uwagi=["tak", "nie"],
+        used_segments=used_segments,
     )
 
 
@@ -154,6 +188,7 @@ def extract_form():
         "firma": request.form.get("firma", "").strip(),
         "telefon": request.form.get("telefon", "").strip(),
         "email": request.form.get("email", "").strip(),
+        "segment": request.form.get("segment", "").strip(),
     }
 
 
@@ -166,6 +201,9 @@ def validate_form(form):
 
     if not form["nieruchomosc"]:
         errors["nieruchomosc"] = "Nieruchomość jest wymagana."
+
+    if not form["segment"]:
+        errors["segment"] = "Wybierz segment — Detal lub Hurt."
 
     try:
         parse_date(form["ostatnia_data"])
@@ -200,10 +238,10 @@ def build_company_contacts(inspections):
 @app.route("/add", methods=["GET", "POST"])
 def add():
     inspections = load_inspections()
-    form = (
-        extract_form()
-        if request.method == "POST"
-        else {
+    if request.method == "POST":
+        form = extract_form()
+    else:
+        form = {
             key: ""
             for key in [
                 "nazwa",
@@ -214,9 +252,9 @@ def add():
                 "firma",
                 "telefon",
                 "email",
+                "segment",
             ]
         }
-    )
 
     errors = validate_form(form) if request.method == "POST" else {}
 
@@ -236,6 +274,7 @@ def add():
                 "firma": form["firma"],
                 "telefon": form["telefon"],
                 "email": form["email"],
+                "segment": form["segment"],
             }
         )
 
@@ -283,6 +322,7 @@ def edit(idx: int):
                     "firma": form["firma"],
                     "telefon": form["telefon"],
                     "email": form["email"],
+                    "segment": form["segment"],
                 }
             )
 
@@ -299,6 +339,7 @@ def edit(idx: int):
             "firma": ins.get("firma", ""),
             "telefon": ins.get("telefon", ""),
             "email": ins.get("email", ""),
+            "segment": ins.get("segment", ""),
         }
         errors = {}
 
