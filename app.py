@@ -11,6 +11,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 DATA_FILE = "przeglady.json"
 USERS_FILE = "users.json"
+PROPERTY_ACCESS_FILE = "property_access.json"
 
 if not os.path.exists(DATA_FILE):
     if os.path.exists("przeglady.json"):
@@ -24,6 +25,10 @@ if not os.path.exists(DATA_FILE):
 if not os.path.exists(USERS_FILE):
     with open(USERS_FILE, "w", encoding="utf-8") as dst:
         dst.write("[]")
+
+if not os.path.exists(PROPERTY_ACCESS_FILE):
+    with open(PROPERTY_ACCESS_FILE, "w", encoding="utf-8") as dst:
+        dst.write("{}")
 
 
 def parse_date(s: str) -> date:
@@ -75,9 +80,10 @@ def load_inspections() -> List[Dict]:
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Upewnij się, że shared_with jest listą
             for ins in data:
-                if "shared_with" not in ins or not isinstance(ins.get("shared_with"), list):
+                if "shared_with" not in ins or not isinstance(
+                    ins.get("shared_with"), list
+                ):
                     ins["shared_with"] = []
             return data
     except FileNotFoundError:
@@ -127,12 +133,38 @@ def save_users(users: List[Dict]) -> None:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
 
+def load_property_access() -> Dict[str, List[str]]:
+    try:
+        with open(PROPERTY_ACCESS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if not isinstance(data, dict):
+                return {}
+            clean = {}
+            for prop, users in data.items():
+                if isinstance(users, list):
+                    clean[prop] = [u for u in users if u]
+            return clean
+    except FileNotFoundError:
+        return {}
+
+
+def save_property_access(data: Dict[str, List[str]]) -> None:
+    with open(PROPERTY_ACCESS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def find_user(username: str) -> Optional[Dict]:
     username = (username or "").strip()
     for user in load_users():
         if user.get("username") == username:
             return user
     return None
+
+
+def get_property_access() -> Dict[str, List[str]]:
+    if not hasattr(g, "property_access"):
+        g.property_access = load_property_access()
+    return g.property_access
 
 
 def is_admin(user: Optional[Dict]) -> bool:
@@ -144,7 +176,14 @@ def user_can_access(user: Dict, inspection: Dict) -> bool:
     if is_admin(user):
         return True
     username = user.get("username")
-    return inspection.get("owner") == username or username in inspection.get("shared_with", [])
+    if inspection.get("owner") == username:
+        return True
+    # dostęp na poziomie nieruchomości
+    prop_access = get_property_access()
+    if username in prop_access.get(inspection.get("nieruchomosc"), []):
+        return True
+    # stary mechanizm per przegląd (zachowany, ale nie używany w UI)
+    return username in inspection.get("shared_with", [])
 
 
 def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
@@ -261,12 +300,14 @@ def index():
         used_status=used_status,
         used_uwagi=["tak", "nie"],
         used_segments=used_segments,
+        property_access=get_property_access(),
     )
 
 
 def extract_form():
     """Czyści pobieranie danych z formularza i zwraca słownik."""
     shared_raw = request.form.getlist("shared_with")
+    property_shared_raw = request.form.getlist("property_shared_with")
     return {
         "nazwa": request.form.get("nazwa", "").strip(),
         "nieruchomosc": request.form.get("nieruchomosc", "").strip(),
@@ -281,6 +322,7 @@ def extract_form():
         "segment": request.form.get("segment", "").strip(),
         "owner": request.form.get("owner", "").strip(),
         "shared_with": [u.strip() for u in shared_raw if u.strip()],
+        "property_shared_with": [u.strip() for u in property_shared_raw if u.strip()],
     }
 
 
@@ -332,6 +374,7 @@ def build_company_contacts(inspections):
 def add():
     username = g.user["username"]
     inspections = [i for i in load_inspections() if user_can_access(g.user, i)]
+    prop_access = get_property_access()
     if request.method == "POST":
         form = extract_form()
     else:
@@ -347,6 +390,7 @@ def add():
             "segment": "",
             "shared_with": [],
             "owner": username,
+            "property_shared_with": [],
         }
 
     errors = validate_form(form) if request.method == "POST" else {}
@@ -368,16 +412,21 @@ def add():
             "email": form["email"],
             "segment": form["segment"],
             "owner": form.get("owner") or username,
-            "shared_with": form.get("shared_with", []),
+            "shared_with": [],
         }
 
         if not is_admin(g.user):
             new_item["owner"] = username
             new_item["shared_with"] = []
+            form["property_shared_with"] = []
 
         all_inspections = load_inspections()
         all_inspections.append(new_item)
         save_inspections(all_inspections)
+
+        if is_admin(g.user):
+            prop_access[new_item["nieruchomosc"]] = form.get("property_shared_with", [])
+            save_property_access(prop_access)
         return redirect(url_for("index"))
 
     return render_template(
@@ -390,6 +439,7 @@ def add():
         used_companies=get_unique(inspections, "firma"),
         company_contacts=build_company_contacts(inspections),
         all_users=load_users(),
+        property_access=prop_access,
     )
 
 
@@ -399,6 +449,7 @@ def edit(idx: int):
     username = g.user["username"]
     all_inspections = load_inspections()
     accessible = [i for i in all_inspections if user_can_access(g.user, i)]
+    prop_access = get_property_access()
 
     if not (0 <= idx < len(all_inspections)):
         return "Nie znaleziono przeglądu.", 404
@@ -420,6 +471,9 @@ def edit(idx: int):
                 # zwykły użytkownik nie może zmieniać ownera ani udostępnień
                 new_owner = ins.get("owner", username)
                 form["shared_with"] = ins.get("shared_with", [])
+                form["property_shared_with"] = prop_access.get(
+                    ins.get("nieruchomosc"), []
+                )
 
             ins.update(
                 {
@@ -435,12 +489,17 @@ def edit(idx: int):
                     "email": form["email"],
                     "segment": form["segment"],
                     "owner": new_owner,
-                    "shared_with": form.get("shared_with", ins.get("shared_with", [])),
+                    "shared_with": [],
                 }
             )
 
             all_inspections[idx] = ins
             save_inspections(all_inspections)
+
+            if is_admin(g.user):
+                prop_access.pop(ins.get("nieruchomosc"), None)
+                prop_access[ins["nieruchomosc"]] = form.get("property_shared_with", [])
+                save_property_access(prop_access)
             return redirect(url_for("index"))
 
     else:
@@ -456,6 +515,7 @@ def edit(idx: int):
             "segment": ins.get("segment", ""),
             "owner": ins.get("owner", username),
             "shared_with": ins.get("shared_with", []),
+            "property_shared_with": prop_access.get(ins.get("nieruchomosc"), []),
         }
         errors = {}
 
@@ -469,6 +529,7 @@ def edit(idx: int):
         used_companies=get_unique(accessible, "firma"),
         company_contacts=build_company_contacts(accessible),
         all_users=load_users(),
+        property_access=prop_access,
     )
 
 

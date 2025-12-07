@@ -117,11 +117,12 @@
             {% if current_user and current_user.role == "admin" %}
             <th>Właściciel</th>
             {% endif %}
-
             <th>Segment</th>
             <th>Firma</th>
             <th>Kontakt</th>
-            <th>Udostępnione</th>
+            {% if current_user and current_user.role == "admin" %}
+            <th>Udostępnione nieruchomość</th>
+            {% endif %}
             <th>Ostatnia data</th>
             <th>Częstotliwość</th>
             <th>Kolejna data</th>
@@ -177,14 +178,16 @@
               {% endif %}
             </td>
 
+            {% if current_user and current_user.role == "admin" %}
             <td>
-              {% set shared = ins.shared_with or [] %}
+              {% set shared = property_access.get(ins.nieruchomosc, []) if property_access else [] %}
               {% if shared %}
                 {{ shared | join(", ") }}
               {% else %}
                 -
               {% endif %}
             </td>
+            {% endif %}
 
             <td>
               {% if ins.ostatnia_data %}

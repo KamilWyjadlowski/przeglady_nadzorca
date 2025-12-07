@@ -106,20 +106,20 @@
         </div>
 
         <div class="field">
-          <label for="shared_with">Udostępnij użytkownikom</label>
-          <select id="shared_with" name="shared_with" multiple size="6">
+          <label for="property_shared_with">Udostępnij nieruchomość użytkownikom</label>
+          <select id="property_shared_with" name="property_shared_with" multiple size="6">
             {% for u in all_users %}
               {% if u.username != form.owner %}
               <option
                 value="{{ u.username }}"
-                {% if u.username in form.shared_with %}selected{% endif %}
+                {% if u.username in form.property_shared_with %}selected{% endif %}
               >
                 {{ u.username }}
               </option>
               {% endif %}
             {% endfor %}
           </select>
-          <div class="hint">Przytrzymaj Ctrl/Cmd, aby wybrać wiele osób. Dostęp daje możliwość edycji.</div>
+          <div class="hint">Przytrzymaj Ctrl/Cmd, aby wybrać wiele osób. Dostęp dotyczy całej nieruchomości.</div>
         </div>
         {% endif %}
 
