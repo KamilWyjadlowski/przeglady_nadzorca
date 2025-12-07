@@ -2,39 +2,81 @@ from flask import Flask, render_template, request, redirect, url_for, session, g
 import json
 import os
 import re
+import calendar
 from datetime import date, datetime, timedelta
 from functools import wraps
 from math import ceil
 from typing import List, Dict, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Date,
+    DateTime,
+    Text,
+    JSON,
+    ForeignKey,
+)
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
-DATA_FILE = "przeglady.json"
-USERS_FILE = "users.json"
-PROPERTY_ACCESS_FILE = "property_access.json"
-AUDIT_FILE = "audit.log"
 
-if not os.path.exists(DATA_FILE):
-    if os.path.exists("przeglady.json"):
-        with open("przeglady.json", "r", encoding="utf-8") as src:
-            with open(DATA_FILE, "w", encoding="utf-8") as dst:
-                dst.write(src.read())
-    else:
-        with open(DATA_FILE, "w", encoding="utf-8") as dst:
-            dst.write("[]")
+# DB CONFIG
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "3306")
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_NAME = os.getenv("DB_NAME", "przeglady")
+DB_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-if not os.path.exists(USERS_FILE):
-    with open(USERS_FILE, "w", encoding="utf-8") as dst:
-        dst.write("[]")
+engine = create_engine(DB_URL, pool_pre_ping=True, echo=False, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+Base = declarative_base()
 
-if not os.path.exists(PROPERTY_ACCESS_FILE):
-    with open(PROPERTY_ACCESS_FILE, "w", encoding="utf-8") as dst:
-        dst.write("{}")
 
-if not os.path.exists(AUDIT_FILE):
-    with open(AUDIT_FILE, "w", encoding="utf-8") as dst:
-        dst.write("")
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(100), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="user")
+
+
+class Inspection(Base):
+    __tablename__ = "inspections"
+    id = Column(Integer, primary_key=True)
+    nazwa = Column(String(255), nullable=False)
+    nieruchomosc = Column(String(255), nullable=False)
+    property_id = Column(String(32))
+    ostatnia_data = Column(Date, nullable=False)
+    czestotliwosc_miesiace = Column(Integer, nullable=False)
+    kolejna_data = Column(Date, nullable=False)
+    status = Column(String(32), nullable=False)
+    opis = Column(Text)
+    firma = Column(String(255))
+    telefon = Column(String(64))
+    email = Column(String(255))
+    segment = Column(String(32))
+    owner = Column(String(100), nullable=False)
+
+
+class PropertyAccess(Base):
+    __tablename__ = "property_access"
+    id = Column(Integer, primary_key=True)
+    nieruchomosc = Column(String(255), nullable=False)
+    username = Column(String(100), nullable=False)
+
+
+class Audit(Base):
+    __tablename__ = "audit"
+    id = Column(Integer, primary_key=True)
+    ts = Column(DateTime, nullable=False)
+    action = Column(String(64), nullable=False)
+    user = Column(String(100))
+    details = Column(JSON)
 
 
 def parse_date(s: str) -> date:
@@ -64,10 +106,6 @@ def parse_date(s: str) -> date:
 
 def normalize_property_name(raw: str) -> str:
     return " ".join(p.capitalize() for p in raw.strip().split())
-
-
-import calendar
-from datetime import date
 
 
 def add_months(d: date, months: int) -> date:
@@ -135,72 +173,90 @@ def property_id_state(inspections: List[Dict]) -> tuple[Dict[str, str], int]:
     return mapping, max_num
 
 
-def log_event(action: str, user: str, details: Dict):
-    """Zapis logu audytowego w formacie JSON Lines z retencją 4 miesięcy."""
-    entry = {
-        "ts": datetime.utcnow().isoformat() + "Z",
-        "action": action,
-        "user": user,
-        "details": details,
-    }
+def get_or_create_property_id(db, prop_name: str) -> str:
+    prop_name = normalize_property_name(prop_name)
+    existing = (
+        db.query(Inspection.property_id)
+        .filter(Inspection.nieruchomosc == prop_name, Inspection.property_id != None)
+        .first()
+    )
+    if existing and existing[0]:
+        return existing[0]
 
-    cutoff = datetime.utcnow() - timedelta(days=120)
-    kept = []
-    if os.path.exists(AUDIT_FILE):
-        try:
-            with open(AUDIT_FILE, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        obj = json.loads(line)
-                        ts = obj.get("ts", "")
-                        dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).replace(
-                            tzinfo=None
-                        )
-                        if dt >= cutoff:
-                            kept.append(obj)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-
-    kept.append(entry)
-
-    try:
-        with open(AUDIT_FILE, "w", encoding="utf-8") as f:
-            for obj in kept:
-                f.write(json.dumps(obj, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    max_num = 0
+    pat = re.compile(r"^P(\\d+)$")
+    for (pid,) in db.query(Inspection.property_id).filter(Inspection.property_id != None):
+        m = pat.match(pid or "")
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    max_num += 1
+    return f"P{max_num:04d}"
 
 
-def load_inspections() -> List[Dict]:
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            for ins in data:
-                if "shared_with" not in ins or not isinstance(
-                    ins.get("shared_with"), list
-                ):
-                    ins["shared_with"] = []
-                if "property_id" not in ins:
-                    ins["property_id"] = ""
-            changed, _, _ = ensure_property_ids(data)
-            if changed:
-                save_inspections(data)
-            return data
-    except FileNotFoundError:
-        return []
+def get_property_access_map(db) -> Dict[str, List[str]]:
+    result = {}
+    rows = db.query(PropertyAccess).all()
+    for row in rows:
+        result.setdefault(row.nieruchomosc, []).append(row.username)
+    return result
 
 
-def save_inspections(data: List[Dict]) -> None:
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def filter_by_owner(inspections: List[Dict], username: str) -> List[Dict]:
+def find_user(username: str, db=None) -> Optional[Dict]:
     if not username:
-        return []
-    return [ins for ins in inspections if ins.get("owner") == username]
+        return None
+    db = db or get_db()
+    user = db.query(User).filter_by(username=username).first()
+    if not user:
+        return None
+    return {"username": user.username, "role": user.role, "password": user.password}
+
+
+def is_admin(user: Optional[Dict]) -> bool:
+    return bool(user) and user.get("role") == "admin"
+
+
+def user_can_access(user: Dict, inspection: Dict, prop_access: Dict[str, List[str]]):
+    if is_admin(user):
+        return True
+    username = user.get("username")
+    if inspection.get("owner") == username:
+        return True
+    return username in prop_access.get(inspection.get("nieruchomosc"), [])
+
+
+@app.before_request
+def setup_db():
+    g.db = SessionLocal()
+    username = session.get("username")
+    g.user = find_user(username, db=g.db) if username else None
+
+
+@app.teardown_appcontext
+def teardown_db(exc):
+    db = getattr(g, "db", None)
+    if db:
+        db.close()
+
+
+@app.context_processor
+def inject_user():
+    return {"current_user": g.get("user")}
+
+
+def log_event(action: str, user: str, details: Dict, db_session=None):
+    db = db_session or get_db()
+    try:
+        evt = Audit(ts=datetime.utcnow(), action=action, user=user, details=details)
+        db.add(evt)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+def get_db():
+    if not hasattr(g, "db"):
+        g.db = SessionLocal()
+    return g.db
 
 
 def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
@@ -222,45 +278,15 @@ def get_unique(inspections: List[Dict], key: str) -> List[str]:
     return sorted({i.get(key, "") for i in inspections if i.get(key)})
 
 
-def load_users() -> List[Dict]:
-    try:
-        with open(USERS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
-
-
-def save_users(users: List[Dict]) -> None:
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
-
-
-def load_property_access() -> Dict[str, List[str]]:
-    try:
-        with open(PROPERTY_ACCESS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if not isinstance(data, dict):
-                return {}
-            clean = {}
-            for prop, users in data.items():
-                if isinstance(users, list):
-                    clean[prop] = [u for u in users if u]
-            return clean
-    except FileNotFoundError:
-        return {}
-
-
-def save_property_access(data: Dict[str, List[str]]) -> None:
-    with open(PROPERTY_ACCESS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def find_user(username: str) -> Optional[Dict]:
+def find_user(username: str, db=None) -> Optional[Dict]:
     username = (username or "").strip()
-    for user in load_users():
-        if user.get("username") == username:
-            return user
-    return None
+    if not username:
+        return None
+    db = db or get_db()
+    user = db.query(User).filter_by(username=username).first()
+    if not user:
+        return None
+    return {"username": user.username, "role": user.role, "password": user.password}
 
 
 def get_property_access() -> Dict[str, List[str]]:
@@ -341,15 +367,29 @@ def inject_user():
 @app.route("/")
 @login_required
 def index():
-    username = g.user["username"]
-    all_inspections = load_inspections()
+    db = get_db()
+    prop_access = get_property_access_map(db)
     inspections = []
-    for idx, ins in enumerate(all_inspections):
-        if not user_can_access(g.user, ins):
-            continue
-        row = ins.copy()
-        row["idx"] = idx
-        inspections.append(row)
+    for ins in db.query(Inspection).all():
+        ins_dict = {
+            "id": ins.id,
+            "nazwa": ins.nazwa,
+            "nieruchomosc": ins.nieruchomosc,
+            "property_id": ins.property_id or "",
+            "ostatnia_data": ins.ostatnia_data.isoformat() if ins.ostatnia_data else "",
+            "czestotliwosc_miesiace": ins.czestotliwosc_miesiace,
+            "kolejna_data": ins.kolejna_data.isoformat() if ins.kolejna_data else "",
+            "status": ins.status,
+            "opis": ins.opis or "",
+            "firma": ins.firma or "",
+            "telefon": ins.telefon or "",
+            "email": ins.email or "",
+            "segment": ins.segment or "",
+            "owner": ins.owner,
+        }
+        if user_can_access(g.user, ins_dict, prop_access):
+            ins_dict["idx"] = ins.id
+            inspections.append(ins_dict)
 
     f_n = request.args.get("nieruchomosc", "").strip()
     f_name = request.args.get("nazwa", "").strip()
@@ -465,7 +505,6 @@ def index():
         used_status=used_status,
         used_uwagi=["tak", "nie"],
         used_segments=used_segments,
-        property_access=get_property_access(),
         page=page,
         total_pages=total_pages,
         prev_url=prev_url,
@@ -555,11 +594,25 @@ def build_company_contacts(inspections):
 @app.route("/add", methods=["GET", "POST"])
 @login_required
 def add():
-    username = g.user["username"]
-    inspections = [i for i in load_inspections() if user_can_access(g.user, i)]
-    prop_access = get_property_access()
-    existing_all = load_inspections()
-    prop_ids_map, max_pid = property_id_state(existing_all)
+    db = get_db()
+    prop_access_map = get_property_access_map(db)
+    inspections = []
+    for ins in db.query(Inspection).all():
+        ins_dict = {
+            "nazwa": ins.nazwa,
+            "nieruchomosc": ins.nieruchomosc,
+            "ostatnia_data": ins.ostatnia_data.isoformat() if ins.ostatnia_data else "",
+            "czestotliwosc_miesiace": ins.czestotliwosc_miesiace,
+            "opis": ins.opis or "",
+            "firma": ins.firma or "",
+            "telefon": ins.telefon or "",
+            "email": ins.email or "",
+            "segment": ins.segment or "",
+            "owner": ins.owner,
+        }
+        if user_can_access(g.user, ins_dict, prop_access_map):
+            inspections.append(ins_dict)
+
     if request.method == "POST":
         form = extract_form()
     else:
@@ -574,7 +627,7 @@ def add():
             "email": "",
             "segment": "",
             "shared_with": [],
-            "owner": username,
+            "owner": g.user["username"],
             "property_shared_with": [],
         }
 
@@ -585,50 +638,47 @@ def add():
         next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
 
         prop_name = normalize_property_name(form["nieruchomosc"])
-        if prop_name in prop_ids_map:
-            pid = prop_ids_map[prop_name]
-        else:
-            max_pid += 1
-            pid = f"P{max_pid:04d}"
-            prop_ids_map[prop_name] = pid
+        pid = get_or_create_property_id(db, prop_name)
 
-        new_item = {
-            "nazwa": form["nazwa"],
-            "nieruchomosc": prop_name,
-            "property_id": pid,
-            "ostatnia_data": form["ostatnia_data"],
-            "czestotliwosc_miesiace": freq,
-            "kolejna_data": next_dt,
-            "status": status,
-            "opis": clean_empty_notes(form["opis"]),
-            "firma": form["firma"],
-            "telefon": form["telefon"],
-            "email": form["email"],
-            "segment": form["segment"],
-            "owner": form.get("owner") or username,
-            "shared_with": [],
-        }
-
+        owner_val = form.get("owner") or g.user["username"]
         if not is_admin(g.user):
-            new_item["owner"] = username
-            new_item["shared_with"] = []
+            owner_val = g.user["username"]
             form["property_shared_with"] = []
 
-        existing_all.append(new_item)
-        save_inspections(existing_all)
+        new_ins = Inspection(
+            nazwa=form["nazwa"],
+            nieruchomosc=prop_name,
+            property_id=pid,
+            ostatnia_data=parse_date(form["ostatnia_data"]),
+            czestotliwosc_miesiace=freq,
+            kolejna_data=date.fromisoformat(next_dt),
+            status=status,
+            opis=clean_empty_notes(form["opis"]),
+            firma=form["firma"],
+            telefon=form["telefon"],
+            email=form["email"],
+            segment=form["segment"],
+            owner=owner_val,
+        )
+        db.add(new_ins)
+        db.commit()
 
         if is_admin(g.user):
-            prop_access[new_item["nieruchomosc"]] = form.get("property_shared_with", [])
-            save_property_access(prop_access)
+            db.query(PropertyAccess).filter(PropertyAccess.nieruchomosc == prop_name).delete()
+            for u in form.get("property_shared_with", []):
+                db.add(PropertyAccess(nieruchomosc=prop_name, username=u))
+            db.commit()
+
         log_event(
             "add_inspection",
-            username,
+            g.user["username"],
             {
-                "property": new_item["nieruchomosc"],
-                "property_id": new_item.get("property_id", ""),
-                "name": new_item["nazwa"],
-                "owner": new_item["owner"],
+                "property": prop_name,
+                "property_id": pid,
+                "name": form["nazwa"],
+                "owner": owner_val,
             },
+            db_session=db,
         )
         return redirect(url_for("index"))
 
@@ -641,25 +691,44 @@ def add():
         used_properties=get_unique(inspections, "nieruchomosc"),
         used_companies=get_unique(inspections, "firma"),
         company_contacts=build_company_contacts(inspections),
-        all_users=load_users(),
-        property_access=prop_access,
+        all_users=db.query(User).all(),
+        property_access=prop_access_map,
     )
 
 
 @app.route("/edit/<int:idx>", methods=["GET", "POST"])
 @login_required
 def edit(idx: int):
-    username = g.user["username"]
-    all_inspections = load_inspections()
-    accessible = [i for i in all_inspections if user_can_access(g.user, i)]
-    prop_access = get_property_access()
-
-    if not (0 <= idx < len(all_inspections)):
+    db = get_db()
+    prop_access = get_property_access_map(db)
+    ins_obj = db.query(Inspection).filter_by(id=idx).first()
+    if not ins_obj:
         return "Nie znaleziono przeglądu.", 404
 
-    ins = all_inspections[idx]
-    if not user_can_access(g.user, ins):
+    ins_dict = {
+        "nazwa": ins_obj.nazwa,
+        "nieruchomosc": ins_obj.nieruchomosc,
+        "opis": ins_obj.opis or "",
+        "firma": ins_obj.firma or "",
+        "telefon": ins_obj.telefon or "",
+        "email": ins_obj.email or "",
+        "segment": ins_obj.segment or "",
+        "owner": ins_obj.owner,
+    }
+    if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu do tego przeglądu.", 403
+
+    accessible = []
+    for i in db.query(Inspection).all():
+        d = {
+            "nazwa": i.nazwa,
+            "nieruchomosc": i.nieruchomosc,
+            "firma": i.firma or "",
+            "owner": i.owner,
+            "segment": i.segment or "",
+        }
+        if user_can_access(g.user, d, prop_access):
+            accessible.append(d)
 
     if request.method == "POST":
         form = extract_form()
@@ -668,70 +737,70 @@ def edit(idx: int):
         if not errors:
             freq = int(form["czestotliwosc_miesiace"])
             next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
-            before = ins.copy()
+            before_owner = ins_obj.owner
 
-            new_owner = form.get("owner") or ins.get("owner") or username
+            new_owner = form.get("owner") or ins_obj.owner
             if not is_admin(g.user):
-                new_owner = ins.get("owner", username)
-                form["shared_with"] = ins.get("shared_with", [])
-                form["property_shared_with"] = prop_access.get(
-                    ins.get("nieruchomosc"), []
-                )
+                new_owner = ins_obj.owner
+                form["property_shared_with"] = prop_access.get(ins_obj.nieruchomosc, [])
 
-            ins.update(
-                {
-                    "nazwa": form["nazwa"],
-                    "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
-                    "property_id": ins.get("property_id", ""),
-                    "ostatnia_data": form["ostatnia_data"],
-                    "czestotliwosc_miesiace": freq,
-                    "kolejna_data": next_dt,
-                    "status": status,
-                    "opis": clean_empty_notes(form["opis"]),
-                    "firma": form["firma"],
-                    "telefon": form["telefon"],
-                    "email": form["email"],
-                    "segment": form["segment"],
-                    "owner": new_owner,
-                    "shared_with": [],
-                }
-            )
+            new_prop_name = normalize_property_name(form["nieruchomosc"])
+            pid = ins_obj.property_id or get_or_create_property_id(db, new_prop_name)
 
-            all_inspections[idx] = ins
-            save_inspections(all_inspections)
+            ins_obj.nazwa = form["nazwa"]
+            ins_obj.nieruchomosc = new_prop_name
+            ins_obj.property_id = pid
+            ins_obj.ostatnia_data = parse_date(form["ostatnia_data"])
+            ins_obj.czestotliwosc_miesiace = freq
+            ins_obj.kolejna_data = date.fromisoformat(next_dt)
+            ins_obj.status = status
+            ins_obj.opis = clean_empty_notes(form["opis"])
+            ins_obj.firma = form["firma"]
+            ins_obj.telefon = form["telefon"]
+            ins_obj.email = form["email"]
+            ins_obj.segment = form["segment"]
+            ins_obj.owner = new_owner
+
+            db.commit()
 
             if is_admin(g.user):
-                prop_access.pop(ins.get("nieruchomosc"), None)
-                prop_access[ins["nieruchomosc"]] = form.get("property_shared_with", [])
-                save_property_access(prop_access)
+                db.query(PropertyAccess).filter(
+                    PropertyAccess.nieruchomosc == new_prop_name
+                ).delete()
+                for u in form.get("property_shared_with", []):
+                    db.add(PropertyAccess(nieruchomosc=new_prop_name, username=u))
+                db.commit()
+
             log_event(
                 "edit_inspection",
-                username,
+                g.user["username"],
                 {
-                    "property": ins["nieruchomosc"],
-                    "property_id": ins.get("property_id", ""),
-                    "name": ins["nazwa"],
-                    "owner_before": before.get("owner"),
-                    "owner_after": ins.get("owner"),
+                    "property": ins_obj.nieruchomosc,
+                    "property_id": ins_obj.property_id or "",
+                    "name": ins_obj.nazwa,
+                    "owner_before": before_owner,
+                    "owner_after": ins_obj.owner,
                 },
+                db_session=db,
             )
             return redirect(url_for("index"))
 
     else:
         form = {
-            "nazwa": ins.get("nazwa", ""),
-            "nieruchomosc": ins.get("nieruchomosc", ""),
-            "property_id": ins.get("property_id", ""),
-            "ostatnia_data": ins.get("ostatnia_data", ""),
-            "czestotliwosc_miesiace": str(ins.get("czestotliwosc_miesiace", "")),
-            "opis": ins.get("opis", ""),
-            "firma": ins.get("firma", ""),
-            "telefon": ins.get("telefon", ""),
-            "email": ins.get("email", ""),
-            "segment": ins.get("segment", ""),
-            "owner": ins.get("owner", username),
-            "shared_with": ins.get("shared_with", []),
-            "property_shared_with": prop_access.get(ins.get("nieruchomosc"), []),
+            "nazwa": ins_obj.nazwa,
+            "nieruchomosc": ins_obj.nieruchomosc,
+            "ostatnia_data": ins_obj.ostatnia_data.isoformat()
+            if ins_obj.ostatnia_data
+            else "",
+            "czestotliwosc_miesiace": str(ins_obj.czestotliwosc_miesiace),
+            "opis": ins_obj.opis or "",
+            "firma": ins_obj.firma or "",
+            "telefon": ins_obj.telefon or "",
+            "email": ins_obj.email or "",
+            "segment": ins_obj.segment or "",
+            "owner": ins_obj.owner,
+            "shared_with": [],
+            "property_shared_with": prop_access.get(ins_obj.nieruchomosc, []),
         }
         errors = {}
 
@@ -744,7 +813,7 @@ def edit(idx: int):
         used_properties=get_unique(accessible, "nieruchomosc"),
         used_companies=get_unique(accessible, "firma"),
         company_contacts=build_company_contacts(accessible),
-        all_users=load_users(),
+        all_users=db.query(User).all(),
         property_access=prop_access,
     )
 
@@ -752,27 +821,31 @@ def edit(idx: int):
 @app.route("/delete/<int:idx>", methods=["POST"])
 @login_required
 def delete(idx: int):
-    username = g.user["username"]
-    all_inspections = load_inspections()
-
-    if not (0 <= idx < len(all_inspections)):
+    db = get_db()
+    prop_access = get_property_access_map(db)
+    ins = db.query(Inspection).filter_by(id=idx).first()
+    if not ins:
         return "Nie znaleziono przeglądu.", 404
-
-    ins = all_inspections[idx]
-    if not user_can_access(g.user, ins):
+    ins_dict = {
+        "nazwa": ins.nazwa,
+        "nieruchomosc": ins.nieruchomosc,
+        "owner": ins.owner,
+    }
+    if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu do tego przeglądu.", 403
 
-    del all_inspections[idx]
-    save_inspections(all_inspections)
+    db.delete(ins)
+    db.commit()
     log_event(
         "delete_inspection",
-        username,
+        g.user["username"],
         {
-            "property": ins.get("nieruchomosc"),
-            "property_id": ins.get("property_id", ""),
-            "name": ins.get("nazwa"),
-            "owner": ins.get("owner"),
+            "property": ins.nieruchomosc,
+            "property_id": ins.property_id or "",
+            "name": ins.nazwa,
+            "owner": ins.owner,
         },
+        db_session=db,
     )
     return redirect(url_for("index"))
 
@@ -783,13 +856,22 @@ def admin_properties():
     if not is_admin(g.user):
         return "Brak dostępu.", 403
 
-    inspections = load_inspections()
-    prop_access = get_property_access()
-    owners_map = compute_property_owner_map(inspections)
+    db = get_db()
+    inspections = db.query(Inspection).all()
+    prop_access = get_property_access_map(db)
+    owners_map = compute_property_owner_map(
+        [
+            {
+                "nieruchomosc": ins.nieruchomosc,
+                "owner": ins.owner,
+            }
+            for ins in inspections
+        ]
+    )
 
     properties = []
     for prop in sorted(
-        {ins.get("nieruchomosc", "") for ins in inspections if ins.get("nieruchomosc")}
+        {ins.nieruchomosc for ins in inspections if ins.nieruchomosc}
     ):
         properties.append(
             {
@@ -797,9 +879,7 @@ def admin_properties():
                 "slug": slugify_property(prop),
                 "owner": owners_map.get(prop, ""),
                 "shared_with": prop_access.get(prop, []),
-                "count": sum(
-                    1 for ins in inspections if ins.get("nieruchomosc") == prop
-                ),
+                "count": sum(1 for ins in inspections if ins.nieruchomosc == prop),
             }
         )
 
@@ -815,11 +895,16 @@ def admin_properties():
                 if u.strip()
             ]
 
-            for ins in inspections:
-                if ins.get("nieruchomosc") == prop["name"]:
-                    ins["owner"] = new_owner
+            db.query(Inspection).filter(Inspection.nieruchomosc == prop["name"]).update(
+                {"owner": new_owner}
+            )
 
-            prop_access[prop["name"]] = shared_with
+            db.query(PropertyAccess).filter(
+                PropertyAccess.nieruchomosc == prop["name"]
+            ).delete()
+            for u in shared_with:
+                db.add(PropertyAccess(nieruchomosc=prop["name"], username=u))
+            db.commit()
             changes.append(
                 {
                     "property": prop["name"],
@@ -828,20 +913,19 @@ def admin_properties():
                 }
             )
 
-        save_inspections(inspections)
-        save_property_access(prop_access)
-        g.property_access = prop_access
+        g.property_access = get_property_access_map(db)
         log_event(
             "update_property_access",
             g.user["username"],
             {"properties": changes},
+            db_session=db,
         )
         return redirect(url_for("admin_properties"))
 
     return render_template(
         "admin_properties.html",
         properties=properties,
-        all_users=load_users(),
+        all_users=db.query(User).all(),
     )
 
 
@@ -851,7 +935,8 @@ def admin_users():
     if not is_admin(g.user):
         return "Brak dostępu.", 403
 
-    users = load_users()
+    db = get_db()
+    users = db.query(User).all()
     message = ""
     error = ""
 
@@ -866,20 +951,19 @@ def admin_users():
         elif not new_pin.isdigit() or len(new_pin) < 4:
             error = "PIN musi składać się z co najmniej 4 cyfr."
         else:
-            user = find_user(username)
+            user = db.query(User).filter_by(username=username).first()
             if not user:
                 error = "Użytkownik nie istnieje."
             else:
-                for u in users:
-                    if u.get("username") == username:
-                        u["password"] = generate_password_hash(
-                            new_pin, method="pbkdf2:sha256"
-                        )
-                save_users(users)
+                user.password = generate_password_hash(
+                    new_pin, method="pbkdf2:sha256"
+                )
+                db.commit()
                 log_event(
                     "reset_pin",
                     g.user["username"],
                     {"target": username},
+                    db_session=db,
                 )
                 message = f"Zmieniono PIN użytkownika {username}."
 
@@ -963,19 +1047,16 @@ def register():
             errors["password_confirm"] = "Hasła muszą być takie same."
 
         if not errors:
-            users = load_users()
-            users.append(
-                {
-                    "username": form["username"],
-                    "password": generate_password_hash(
-                        form["password"], method="pbkdf2:sha256"
-                    ),
-                    "role": "user",
-                }
+            db = get_db()
+            new_u = User(
+                username=form["username"],
+                password=generate_password_hash(form["password"], method="pbkdf2:sha256"),
+                role="user",
             )
-            save_users(users)
+            db.add(new_u)
+            db.commit()
             session["username"] = form["username"]
-            log_event("register", form["username"], {"ip": request.remote_addr})
+            log_event("register", form["username"], {"ip": request.remote_addr}, db_session=db)
             return redirect(url_for("index"))
 
     return render_template("register.html", errors=errors, form=form)
