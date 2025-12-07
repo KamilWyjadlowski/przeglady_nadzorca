@@ -5,7 +5,6 @@ from datetime import date
 from functools import wraps
 from typing import List, Dict, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
-from typing import List, Dict, Optional
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
@@ -165,6 +164,28 @@ def get_property_access() -> Dict[str, List[str]]:
     if not hasattr(g, "property_access"):
         g.property_access = load_property_access()
     return g.property_access
+
+
+def compute_property_owner_map(inspections: List[Dict]) -> Dict[str, str]:
+    """Zwraca mapę nieruchomość -> właściciel (na podstawie pierwszego rekordu)."""
+    owners: Dict[str, str] = {}
+    for ins in inspections:
+        prop = ins.get("nieruchomosc")
+        if prop and prop not in owners:
+            owners[prop] = ins.get("owner", "")
+    return owners
+
+
+def slugify_property(prop: str) -> str:
+    """Prosty slug do użycia w nazwach pól formularza."""
+    return (
+        (prop or "")
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace(".", "_")
+        .replace(",", "_")
+        .replace(":", "_")
+    )
 
 
 def is_admin(user: Optional[Dict]) -> bool:
@@ -549,6 +570,49 @@ def delete(idx: int):
     del all_inspections[idx]
     save_inspections(all_inspections)
     return redirect(url_for("index"))
+
+
+@app.route("/admin/properties", methods=["GET", "POST"])
+@login_required
+def admin_properties():
+    if not is_admin(g.user):
+        return "Brak dostępu.", 403
+
+    inspections = load_inspections()
+    prop_access = get_property_access()
+    owners_map = compute_property_owner_map(inspections)
+
+    properties = []
+    for prop in sorted({ins.get("nieruchomosc", "") for ins in inspections if ins.get("nieruchomosc")}):
+        properties.append(
+            {
+                "name": prop,
+                "slug": slugify_property(prop),
+                "owner": owners_map.get(prop, ""),
+                "shared_with": prop_access.get(prop, []),
+                "count": sum(1 for ins in inspections if ins.get("nieruchomosc") == prop),
+            }
+        )
+
+    if request.method == "POST":
+        for prop in properties:
+            shared_with = [
+                u.strip() for u in request.form.getlist(f"shared_with__{prop['slug']}") if u.strip()
+            ]
+
+            # zapisz udostępnienia (właściciela nie zmieniamy tutaj)
+            prop_access[prop["name"]] = shared_with
+
+        save_inspections(inspections)
+        save_property_access(prop_access)
+        g.property_access = prop_access
+        return redirect(url_for("admin_properties"))
+
+    return render_template(
+        "admin_properties.html",
+        properties=properties,
+        all_users=load_users(),
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])

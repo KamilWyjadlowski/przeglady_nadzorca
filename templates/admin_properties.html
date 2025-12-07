@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Panel nieruchomości - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Panel admina</span>
+        </div>
+        <div class="user-panel">
+          <a href="{{ url_for('index') }}" class="btn">⬅ Lista przeglądów</a>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
+
+      <h2>Nieruchomości i udostępnienia</h2>
+
+      {% if properties %}
+      <form method="POST" id="adminPropForm">
+        <table>
+          <thead>
+            <tr>
+              <th>Nieruchomość</th>
+              <th>Przeglądy</th>
+              <th>Udostępnione</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for prop in properties %}
+            <tr>
+              <td>{{ prop.name }}</td>
+              <td>{{ prop.count }}</td>
+              <td>
+                <div class="checkbox-list">
+                  {% for u in all_users %}
+                    {% if u.role != "admin" %}
+                    {% set cid = "prop_" ~ prop.slug ~ "_" ~ loop.index0 ~ "_" ~ u.username %}
+                    <label class="checkbox-row" for="{{ cid }}">
+                      <input
+                        type="checkbox"
+                        id="{{ cid }}"
+                        name="shared_with__{{ prop.slug }}"
+                        value="{{ u.username }}"
+                        {% if u.username in prop.shared_with %}checked{% endif %}
+                      />
+                      <span>{{ u.username }}</span>
+                    </label>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="actions" style="margin-top: 12px;">
+          <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="empty">Brak nieruchomości.</p>
+      {% endif %}
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("adminPropForm");
+        if (!form) return;
+
+        let dirty = false;
+        form.addEventListener("change", () => {
+          dirty = true;
+        });
+
+        form.addEventListener("submit", () => {
+          dirty = false;
+        });
+
+        window.addEventListener("beforeunload", (event) => {
+          if (!dirty) return;
+          event.preventDefault();
+          event.returnValue = "";
+        });
+      });
+    </script>
+  </body>
+</html>

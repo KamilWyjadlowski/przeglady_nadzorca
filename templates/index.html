@@ -18,6 +18,9 @@
           <div class="user-name">
             Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
           </div>
+          {% if current_user and current_user.role == "admin" %}
+          <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
+          {% endif %}
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>
@@ -114,15 +117,9 @@
             <th>Lp.</th>
             <th>Nieruchomość</th>
             <th>Nazwa</th>
-            {% if current_user and current_user.role == "admin" %}
-            <th>Właściciel</th>
-            {% endif %}
             <th>Segment</th>
             <th>Firma</th>
             <th>Kontakt</th>
-            {% if current_user and current_user.role == "admin" %}
-            <th>Udostępnione nieruchomość</th>
-            {% endif %}
             <th>Ostatnia data</th>
             <th>Częstotliwość</th>
             <th>Kolejna data</th>
@@ -150,9 +147,6 @@
             <td>{{ loop.index }}</td>
             <td>{{ ins.nieruchomosc }}</td>
             <td>{{ ins.nazwa }}</td>
-            {% if current_user and current_user.role == "admin" %}
-            <td>{{ ins.owner or "-" }}</td>
-            {% endif %}
 
 
             <td>{{ ins.segment or "-" }}</td>
@@ -177,17 +171,6 @@
               <span class="contact-none">Brak danych</span>
               {% endif %}
             </td>
-
-            {% if current_user and current_user.role == "admin" %}
-            <td>
-              {% set shared = property_access.get(ins.nieruchomosc, []) if property_access else [] %}
-              {% if shared %}
-                {{ shared | join(", ") }}
-              {% else %}
-                -
-              {% endif %}
-            </td>
-            {% endif %}
 
             <td>
               {% if ins.ostatnia_data %}

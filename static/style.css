@@ -336,3 +336,23 @@ textarea {
   font-size: 20px;
   cursor: pointer;
 }
+
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.checkbox-row:hover {
+  background: #f2f6ff;
+}

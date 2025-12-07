@@ -371,7 +371,7 @@
     "telefon": "600-100-200",
     "email": "ppoż@alfa.pl",
     "segment": "Detal",
-    "owner": "Szymon",
+    "owner": "Kamil",
     "shared_with": []
   },
   {
@@ -386,7 +386,7 @@
     "telefon": "600-200-300",
     "email": "biuro@klimvent.pl",
     "segment": "Detal",
-    "owner": "Szymon",
+    "owner": "Kamil",
     "shared_with": []
   },
   {
@@ -401,7 +401,7 @@
     "telefon": "600-300-400",
     "email": "kontakt@hydrosafe.pl",
     "segment": "Detal",
-    "owner": "Szymon",
+    "owner": "Kamil",
     "shared_with": []
   },
   {
@@ -416,10 +416,8 @@
     "telefon": "600-400-500",
     "email": "serwis@voltmax.pl",
     "segment": "Detal",
-    "owner": "Szymon",
-    "shared_with": [
-      "Kamil"
-    ]
+    "owner": "Kamil",
+    "shared_with": []
   },
   {
     "nazwa": "Przegląd windy",
@@ -433,7 +431,7 @@
     "telefon": "600-500-600",
     "email": "bok@liftserv.pl",
     "segment": "Detal",
-    "owner": "Szymon",
+    "owner": "Kamil",
     "shared_with": []
   },
   {
@@ -448,7 +446,7 @@
     "telefon": "600-600-700",
     "email": "service@coldair.pl",
     "segment": "Detal",
-    "owner": "Szymon",
+    "owner": "Kamil",
     "shared_with": []
   },
   {

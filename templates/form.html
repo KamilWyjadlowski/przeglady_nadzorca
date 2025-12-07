@@ -23,6 +23,9 @@
           <div class="user-name">
             Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
           </div>
+          {% if current_user and current_user.role == "admin" %}
+          <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
+          {% endif %}
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>
