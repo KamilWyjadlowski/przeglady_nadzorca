@@ -243,11 +243,11 @@ def user_can_access(user: Dict, inspection: Dict) -> bool:
     username = user.get("username")
     if inspection.get("owner") == username:
         return True
-    # dostęp na poziomie nieruchomości
+
     prop_access = get_property_access()
     if username in prop_access.get(inspection.get("nieruchomosc"), []):
         return True
-    # stary mechanizm per przegląd (zachowany, ale nie używany w UI)
+
     return username in inspection.get("shared_with", [])
 
 
@@ -289,15 +289,14 @@ def index():
         if not user_can_access(g.user, ins):
             continue
         row = ins.copy()
-        row["idx"] = idx  # global index w pliku
+        row["idx"] = idx
         inspections.append(row)
 
-    # FILTRY
     f_n = request.args.get("nieruchomosc", "").strip()
     f_name = request.args.get("nazwa", "").strip()
     f_status = request.args.get("status", "").strip()
     f_uwagi = request.args.get("uwagi", "").strip()
-    # NOWE – filtr po segmencie (Detal / Hurt)
+
     f_segment = request.args.get("segment", "").strip()
 
     filtered = []
@@ -315,7 +314,7 @@ def index():
             ok = False
         if f_uwagi == "nie" and opis.lower() not in ("", "brak uwag"):
             ok = False
-        # NOWE – filtr po segmencie
+
         if f_segment and ins.get("segment") != f_segment:
             ok = False
 
@@ -324,17 +323,11 @@ def index():
             row["idx"] = idx
             filtered.append(row)
 
-    # LISTY DO FILTRÓW — TYLKO Z PRZEFILTROWANYCH
     used_properties = get_unique(filtered, "nieruchomosc")
     used_names = get_unique(filtered, "nazwa")
     used_status = get_unique(filtered, "status")
     used_segments = get_unique(filtered, "segment")
 
-    # SORTOWANIE:
-    # 1. nieruchomość alfabetycznie
-    # 2. status (Zaległy -> Nadchodzące -> Aktualne)
-    # 3. kolejna_data rosnąco
-    # 4. nazwa przeglądu alfabetycznie
     status_order = {
         "Zaległy": 0,
         "Nadchodzące": 1,
@@ -495,7 +488,11 @@ def add():
         log_event(
             "add_inspection",
             username,
-            {"property": new_item["nieruchomosc"], "name": new_item["nazwa"], "owner": new_item["owner"]},
+            {
+                "property": new_item["nieruchomosc"],
+                "name": new_item["nazwa"],
+                "owner": new_item["owner"],
+            },
         )
         return redirect(url_for("index"))
 
@@ -632,7 +629,11 @@ def delete(idx: int):
     log_event(
         "delete_inspection",
         username,
-        {"property": ins.get("nieruchomosc"), "name": ins.get("nazwa"), "owner": ins.get("owner")},
+        {
+            "property": ins.get("nieruchomosc"),
+            "name": ins.get("nazwa"),
+            "owner": ins.get("owner"),
+        },
     )
     return redirect(url_for("index"))
 
@@ -648,25 +649,30 @@ def admin_properties():
     owners_map = compute_property_owner_map(inspections)
 
     properties = []
-    for prop in sorted({ins.get("nieruchomosc", "") for ins in inspections if ins.get("nieruchomosc")}):
+    for prop in sorted(
+        {ins.get("nieruchomosc", "") for ins in inspections if ins.get("nieruchomosc")}
+    ):
         properties.append(
             {
                 "name": prop,
                 "slug": slugify_property(prop),
                 "owner": owners_map.get(prop, ""),
                 "shared_with": prop_access.get(prop, []),
-                "count": sum(1 for ins in inspections if ins.get("nieruchomosc") == prop),
+                "count": sum(
+                    1 for ins in inspections if ins.get("nieruchomosc") == prop
+                ),
             }
         )
 
     if request.method == "POST":
         for prop in properties:
-            new_owner = (
-                request.form.get(f"owner__{prop['slug']}", "").strip()
-                or prop.get("owner", "")
-            )
+            new_owner = request.form.get(
+                f"owner__{prop['slug']}", ""
+            ).strip() or prop.get("owner", "")
             shared_with = [
-                u.strip() for u in request.form.getlist(f"shared_with__{prop['slug']}") if u.strip()
+                u.strip()
+                for u in request.form.getlist(f"shared_with__{prop['slug']}")
+                if u.strip()
             ]
 
             # zaktualizuj ownera we wszystkich przeglądach tej nieruchomości
