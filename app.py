@@ -289,12 +289,6 @@ def find_user(username: str, db=None) -> Optional[Dict]:
     return {"username": user.username, "role": user.role, "password": user.password}
 
 
-def get_property_access() -> Dict[str, List[str]]:
-    if not hasattr(g, "property_access"):
-        g.property_access = load_property_access()
-    return g.property_access
-
-
 def compute_property_owner_map(inspections: List[Dict]) -> Dict[str, str]:
     """Zwraca mapę nieruchomość -> właściciel (na podstawie pierwszego rekordu)."""
     owners: Dict[str, str] = {}
@@ -321,21 +315,6 @@ def is_admin(user: Optional[Dict]) -> bool:
     return bool(user) and user.get("role") == "admin"
 
 
-def user_can_access(user: Dict, inspection: Dict) -> bool:
-    """Czy użytkownik może zobaczyć/edytować przegląd."""
-    if is_admin(user):
-        return True
-    username = user.get("username")
-    if inspection.get("owner") == username:
-        return True
-
-    prop_access = get_property_access()
-    if username in prop_access.get(inspection.get("nieruchomosc"), []):
-        return True
-
-    return username in inspection.get("shared_with", [])
-
-
 def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
     """Kto może zmieniać ownera i dostęp: admin lub właściciel."""
     if is_admin(user):
@@ -351,17 +330,6 @@ def login_required(view_func):
         return view_func(*args, **kwargs)
 
     return wrapper
-
-
-@app.before_request
-def load_logged_in_user():
-    username = session.get("username")
-    g.user = find_user(username) if username else None
-
-
-@app.context_processor
-def inject_user():
-    return {"current_user": g.get("user")}
 
 
 @app.route("/")
