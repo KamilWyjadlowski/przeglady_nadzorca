@@ -15,6 +15,7 @@
         </div>
         <div class="user-panel">
           <a href="{{ url_for('index') }}" class="btn">⬅ Lista przeglądów</a>
+          <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>

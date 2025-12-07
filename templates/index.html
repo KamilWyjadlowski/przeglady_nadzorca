@@ -20,6 +20,7 @@
           </div>
           {% if current_user and current_user.role == "admin" %}
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
+          <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
           {% endif %}
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
@@ -33,6 +34,15 @@
       </div>
 
       <form method="GET" class="filters">
+        <div>
+          <label>Szukaj</label>
+          <input
+            type="text"
+            name="q"
+            value="{{ request.args.get('q', '') }}"
+            placeholder="nazwa, nieruchomość"
+          />
+        </div>
 
         <div>
           <label>Nieruchomość</label>
@@ -92,7 +102,6 @@
           </select>
         </div>
 
-
         <div>
           <label>Segment</label>
           <select name="segment">
@@ -108,6 +117,19 @@
           </select>
         </div>
 
+        <div>
+          <label>Sortowanie</label>
+          <select name="sort">
+            <option value="default" {% if request.args.get('sort','default') == 'default' %}selected{% endif %}>Domyślne</option>
+            <option value="nieruchomosc" {% if request.args.get('sort') == 'nieruchomosc' %}selected{% endif %}>Nieruchomość</option>
+            <option value="nazwa" {% if request.args.get('sort') == 'nazwa' %}selected{% endif %}>Nazwa</option>
+            <option value="kolejna_data" {% if request.args.get('sort') == 'kolejna_data' %}selected{% endif %}>Kolejna data</option>
+          </select>
+        </div>
+
+        <div>
+          <button type="submit" class="btn">Filtruj</button>
+        </div>
       </form>
 
       {% if inspections %}
@@ -228,6 +250,18 @@
           {% endfor %}
         </tbody>
       </table>
+
+      <div class="pagination">
+        <div>Pozycje: {{ total_items }} | Strona {{ page }} z {{ total_pages }}</div>
+        <div class="pager-buttons">
+          {% if prev_url %}
+          <a href="{{ prev_url }}" class="btn">« Poprzednia</a>
+          {% endif %}
+          {% if next_url %}
+          <a href="{{ next_url }}" class="btn">Następna »</a>
+          {% endif %}
+        </div>
+      </div>
 
       {% else %}
       <p class="empty">

@@ -12,7 +12,8 @@
     "email": "ppoż@alfa.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0001"
   },
   {
     "nazwa": "Przegląd wentylacji",
@@ -27,7 +28,8 @@
     "email": "biuro@klimvent.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0002"
   },
   {
     "nazwa": "Przegląd hydrantów",
@@ -42,7 +44,8 @@
     "email": "kontakt@hydrosafe.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0003"
   },
   {
     "nazwa": "Przegląd elektryczny",
@@ -57,7 +60,8 @@
     "email": "serwis@voltmax.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0004"
   },
   {
     "nazwa": "Przegląd windy",
@@ -72,7 +76,8 @@
     "email": "bok@liftserv.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0005"
   },
   {
     "nazwa": "Przegląd klimatyzacji",
@@ -87,7 +92,8 @@
     "email": "service@coldair.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0006"
   },
   {
     "nazwa": "Przegląd PPOŻ",
@@ -102,7 +108,8 @@
     "email": "ppoż@alfa.pl",
     "segment": "Hurt",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0007"
   },
   {
     "nazwa": "Przegląd wentylacji",
@@ -117,7 +124,8 @@
     "email": "biuro@klimvent.pl",
     "segment": "Hurt",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0008"
   },
   {
     "nazwa": "Przegląd hydrantów",
@@ -132,7 +140,8 @@
     "email": "kontakt@hydrosafe.pl",
     "segment": "Hurt",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0009"
   },
   {
     "nazwa": "Przegląd elektryczny",
@@ -147,7 +156,8 @@
     "email": "serwis@voltmax.pl",
     "segment": "Hurt",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0010"
   },
   {
     "nazwa": "Przegląd windy",
@@ -162,7 +172,8 @@
     "email": "bok@liftserv.pl",
     "segment": "Hurt",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0011"
   },
   {
     "nazwa": "Przegląd klimatyzacji",
@@ -177,7 +188,8 @@
     "email": "service@coldair.pl",
     "segment": "Hurt",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0012"
   },
   {
     "nazwa": "Przegląd PPOŻ",
@@ -192,7 +204,8 @@
     "email": "ppoż@alfa.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0013"
   },
   {
     "nazwa": "Przegląd wentylacji",
@@ -207,7 +220,8 @@
     "email": "biuro@klimvent.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0014"
   },
   {
     "nazwa": "Przegląd hydrantów",
@@ -222,7 +236,8 @@
     "email": "kontakt@hydrosafe.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0015"
   },
   {
     "nazwa": "Przegląd elektryczny",
@@ -237,7 +252,8 @@
     "email": "serwis@voltmax.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0016"
   },
   {
     "nazwa": "Przegląd windy",
@@ -252,7 +268,8 @@
     "email": "bok@liftserv.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0017"
   },
   {
     "nazwa": "Przegląd klimatyzacji",
@@ -267,7 +284,8 @@
     "email": "service@coldair.pl",
     "segment": "Detal",
     "owner": "Kamil",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0018"
   },
   {
     "nazwa": "Przegląd PPOŻ",
@@ -282,7 +300,8 @@
     "email": "ppoż@alfa.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0019"
   },
   {
     "nazwa": "Przegląd wentylacji",
@@ -297,7 +316,8 @@
     "email": "biuro@klimvent.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0020"
   },
   {
     "nazwa": "Przegląd hydrantów",
@@ -312,7 +332,8 @@
     "email": "kontakt@hydrosafe.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0021"
   },
   {
     "nazwa": "Przegląd elektryczny",
@@ -327,7 +348,8 @@
     "email": "serwis@voltmax.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0022"
   },
   {
     "nazwa": "Przegląd windy",
@@ -342,7 +364,8 @@
     "email": "bok@liftserv.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0023"
   },
   {
     "nazwa": "Przegląd klimatyzacji",
@@ -357,7 +380,8 @@
     "email": "service@coldair.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0024"
   },
   {
     "nazwa": "Przegląd PPOŻ",
@@ -372,7 +396,8 @@
     "email": "ppoż@alfa.pl",
     "segment": "Detal",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0025"
   },
   {
     "nazwa": "Przegląd wentylacji",
@@ -387,7 +412,8 @@
     "email": "biuro@klimvent.pl",
     "segment": "Detal",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0026"
   },
   {
     "nazwa": "Przegląd hydrantów",
@@ -402,7 +428,8 @@
     "email": "kontakt@hydrosafe.pl",
     "segment": "Detal",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0027"
   },
   {
     "nazwa": "Przegląd elektryczny",
@@ -417,7 +444,8 @@
     "email": "serwis@voltmax.pl",
     "segment": "Detal",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0028"
   },
   {
     "nazwa": "Przegląd windy",
@@ -432,7 +460,8 @@
     "email": "bok@liftserv.pl",
     "segment": "Detal",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0029"
   },
   {
     "nazwa": "Przegląd klimatyzacji",
@@ -447,7 +476,8 @@
     "email": "service@coldair.pl",
     "segment": "Detal",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0030"
   },
   {
     "nazwa": "Przegląd PPOŻ",
@@ -462,7 +492,8 @@
     "email": "ppoż@alfa.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0031"
   },
   {
     "nazwa": "Przegląd wentylacji",
@@ -477,7 +508,8 @@
     "email": "biuro@klimvent.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0032"
   },
   {
     "nazwa": "Przegląd hydrantów",
@@ -492,7 +524,8 @@
     "email": "kontakt@hydrosafe.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0033"
   },
   {
     "nazwa": "Przegląd elektryczny",
@@ -507,7 +540,8 @@
     "email": "serwis@voltmax.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0034"
   },
   {
     "nazwa": "Przegląd windy",
@@ -522,7 +556,8 @@
     "email": "bok@liftserv.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0035"
   },
   {
     "nazwa": "Przegląd klimatyzacji",
@@ -537,6 +572,7 @@
     "email": "service@coldair.pl",
     "segment": "Hurt",
     "owner": "Szymon",
-    "shared_with": []
+    "shared_with": [],
+    "property_id": "P0036"
   }
 ]

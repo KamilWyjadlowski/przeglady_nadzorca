@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, session, g
 import json
 import os
+import re
 from datetime import date, datetime, timedelta
 from functools import wraps
+from math import ceil
 from typing import List, Dict, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -80,6 +82,59 @@ def clean_empty_notes(text: str) -> str:
     return text if text else "Brak uwag"
 
 
+def normalize_phone(phone: str) -> str:
+    cleaned = re.sub(r"[\\s\\-()]", "", phone)
+    if cleaned.startswith("+"):
+        digits = cleaned[1:]
+        prefix = "+"
+    else:
+        digits = cleaned
+        prefix = ""
+    if not digits.isdigit() or len(digits) < 7:
+        raise ValueError("Nieprawidłowy numer telefonu.")
+    return prefix + digits
+
+
+def ensure_property_ids(inspections: List[Dict]) -> tuple[bool, Dict[str, str], int]:
+    """Zapewnia property_id dla każdej nieruchomości. Zwraca (changed, map, max_num)."""
+    mapping: Dict[str, str] = {}
+    max_num = 0
+    pat = re.compile(r"^P(\\d+)$")
+
+    for ins in inspections:
+        pid = ins.get("property_id", "")
+        if pid:
+            mapping.setdefault(ins.get("nieruchomosc"), pid)
+            m = pat.match(pid)
+            if m:
+                max_num = max(max_num, int(m.group(1)))
+
+    changed = False
+    for ins in inspections:
+        if not ins.get("property_id"):
+            max_num += 1
+            pid = f"P{max_num:04d}"
+            ins["property_id"] = pid
+            mapping.setdefault(ins.get("nieruchomosc"), pid)
+            changed = True
+
+    return changed, mapping, max_num
+
+
+def property_id_state(inspections: List[Dict]) -> tuple[Dict[str, str], int]:
+    mapping: Dict[str, str] = {}
+    max_num = 0
+    pat = re.compile(r"^P(\\d+)$")
+    for ins in inspections:
+        pid = ins.get("property_id", "")
+        if pid:
+            mapping.setdefault(ins.get("nieruchomosc"), pid)
+            m = pat.match(pid)
+            if m:
+                max_num = max(max_num, int(m.group(1)))
+    return mapping, max_num
+
+
 def log_event(action: str, user: str, details: Dict):
     """Zapis logu audytowego w formacie JSON Lines z retencją 4 miesięcy."""
     entry = {
@@ -104,7 +159,6 @@ def log_event(action: str, user: str, details: Dict):
                         if dt >= cutoff:
                             kept.append(obj)
                     except Exception:
-                        # pomiń uszkodzone linie
                         pass
         except Exception:
             pass
@@ -116,7 +170,7 @@ def log_event(action: str, user: str, details: Dict):
             for obj in kept:
                 f.write(json.dumps(obj, ensure_ascii=False) + "\n")
     except Exception:
-        pass  # nie blokuj głównego działania przy błędzie logowania
+        pass
 
 
 def load_inspections() -> List[Dict]:
@@ -128,6 +182,11 @@ def load_inspections() -> List[Dict]:
                     ins.get("shared_with"), list
                 ):
                     ins["shared_with"] = []
+                if "property_id" not in ins:
+                    ins["property_id"] = ""
+            changed, _, _ = ensure_property_ids(data)
+            if changed:
+                save_inspections(data)
             return data
     except FileNotFoundError:
         return []
@@ -296,8 +355,14 @@ def index():
     f_name = request.args.get("nazwa", "").strip()
     f_status = request.args.get("status", "").strip()
     f_uwagi = request.args.get("uwagi", "").strip()
-
     f_segment = request.args.get("segment", "").strip()
+    f_q = request.args.get("q", "").strip().lower()
+    sort_by = request.args.get("sort", "default")
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+    per_page = 15
 
     filtered = []
     for idx, ins in enumerate(inspections):
@@ -314,19 +379,27 @@ def index():
             ok = False
         if f_uwagi == "nie" and opis.lower() not in ("", "brak uwag"):
             ok = False
-
         if f_segment and ins.get("segment") != f_segment:
             ok = False
+        if f_q:
+            hay = " ".join(
+                [
+                    ins.get("nazwa", ""),
+                    ins.get("nieruchomosc", ""),
+                ]
+            ).lower()
+            if f_q not in hay:
+                ok = False
 
         if ok:
             row = ins.copy()
             row["idx"] = idx
             filtered.append(row)
 
-    used_properties = get_unique(filtered, "nieruchomosc")
-    used_names = get_unique(filtered, "nazwa")
-    used_status = get_unique(filtered, "status")
-    used_segments = get_unique(filtered, "segment")
+    used_properties = get_unique(inspections, "nieruchomosc")
+    used_names = get_unique(inspections, "nazwa")
+    used_status = get_unique(inspections, "status")
+    used_segments = get_unique(inspections, "segment")
 
     status_order = {
         "Zaległy": 0,
@@ -335,30 +408,70 @@ def index():
     }
 
     def safe_date(d):
-        """Zamienia '2025-12-10' na date, przy braku/śmieciu daje bardzo odległą przyszłość."""
         try:
             return date.fromisoformat(d)
         except Exception:
             return date(9999, 12, 31)
 
-    filtered.sort(
-        key=lambda ins: (
-            ins.get("nieruchomosc", ""),
-            status_order.get(ins.get("status"), 99),
-            safe_date(ins.get("kolejna_data")),
-            ins.get("nazwa", ""),
+    if sort_by == "nazwa":
+        filtered.sort(
+            key=lambda ins: (ins.get("nazwa", ""), ins.get("nieruchomosc", ""))
         )
-    )
+    elif sort_by == "kolejna_data":
+        filtered.sort(
+            key=lambda ins: (safe_date(ins.get("kolejna_data")), ins.get("nazwa", ""))
+        )
+    elif sort_by == "nieruchomosc":
+        filtered.sort(
+            key=lambda ins: (
+                ins.get("nieruchomosc", ""),
+                ins.get("property_id", ""),
+                ins.get("nazwa", ""),
+            )
+        )
+    else:
+        filtered.sort(
+            key=lambda ins: (
+                ins.get("nieruchomosc", ""),
+                status_order.get(ins.get("status"), 99),
+                safe_date(ins.get("kolejna_data")),
+                ins.get("nazwa", ""),
+            )
+        )
+
+    total = len(filtered)
+    total_pages = max(1, ceil(total / per_page)) if total else 1
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_items = filtered[start:end]
+
+    args_dict = request.args.to_dict()
+
+    def build_page_url(num):
+        params = args_dict.copy()
+        params["page"] = num
+        return url_for("index", **params)
+
+    prev_url = build_page_url(page - 1) if page > 1 else None
+    next_url = build_page_url(page + 1) if page < total_pages else None
 
     return render_template(
         "index.html",
-        inspections=filtered,
+        inspections=page_items,
         used_properties=used_properties,
         used_names=used_names,
         used_status=used_status,
         used_uwagi=["tak", "nie"],
         used_segments=used_segments,
         property_access=get_property_access(),
+        page=page,
+        total_pages=total_pages,
+        prev_url=prev_url,
+        next_url=next_url,
+        total_items=total,
+        per_page=per_page,
     )
 
 
@@ -397,6 +510,18 @@ def validate_form(form):
     if not form["segment"]:
         errors["segment"] = "Wybierz segment — Detal lub Hurt."
 
+    email = form.get("email", "")
+    if email:
+        if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", email):
+            errors["email"] = "Podaj poprawny adres e-mail."
+
+    phone = form.get("telefon", "")
+    if phone:
+        try:
+            form["telefon"] = normalize_phone(phone)
+        except ValueError as e:
+            errors["telefon"] = str(e)
+
     try:
         parse_date(form["ostatnia_data"])
     except ValueError as e:
@@ -433,6 +558,8 @@ def add():
     username = g.user["username"]
     inspections = [i for i in load_inspections() if user_can_access(g.user, i)]
     prop_access = get_property_access()
+    existing_all = load_inspections()
+    prop_ids_map, max_pid = property_id_state(existing_all)
     if request.method == "POST":
         form = extract_form()
     else:
@@ -457,9 +584,18 @@ def add():
         freq = int(form["czestotliwosc_miesiace"])
         next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
 
+        prop_name = normalize_property_name(form["nieruchomosc"])
+        if prop_name in prop_ids_map:
+            pid = prop_ids_map[prop_name]
+        else:
+            max_pid += 1
+            pid = f"P{max_pid:04d}"
+            prop_ids_map[prop_name] = pid
+
         new_item = {
             "nazwa": form["nazwa"],
-            "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
+            "nieruchomosc": prop_name,
+            "property_id": pid,
             "ostatnia_data": form["ostatnia_data"],
             "czestotliwosc_miesiace": freq,
             "kolejna_data": next_dt,
@@ -478,9 +614,8 @@ def add():
             new_item["shared_with"] = []
             form["property_shared_with"] = []
 
-        all_inspections = load_inspections()
-        all_inspections.append(new_item)
-        save_inspections(all_inspections)
+        existing_all.append(new_item)
+        save_inspections(existing_all)
 
         if is_admin(g.user):
             prop_access[new_item["nieruchomosc"]] = form.get("property_shared_with", [])
@@ -490,6 +625,7 @@ def add():
             username,
             {
                 "property": new_item["nieruchomosc"],
+                "property_id": new_item.get("property_id", ""),
                 "name": new_item["nazwa"],
                 "owner": new_item["owner"],
             },
@@ -536,7 +672,6 @@ def edit(idx: int):
 
             new_owner = form.get("owner") or ins.get("owner") or username
             if not is_admin(g.user):
-                # zwykły użytkownik nie może zmieniać ownera ani udostępnień
                 new_owner = ins.get("owner", username)
                 form["shared_with"] = ins.get("shared_with", [])
                 form["property_shared_with"] = prop_access.get(
@@ -547,6 +682,7 @@ def edit(idx: int):
                 {
                     "nazwa": form["nazwa"],
                     "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
+                    "property_id": ins.get("property_id", ""),
                     "ostatnia_data": form["ostatnia_data"],
                     "czestotliwosc_miesiace": freq,
                     "kolejna_data": next_dt,
@@ -573,6 +709,7 @@ def edit(idx: int):
                 username,
                 {
                     "property": ins["nieruchomosc"],
+                    "property_id": ins.get("property_id", ""),
                     "name": ins["nazwa"],
                     "owner_before": before.get("owner"),
                     "owner_after": ins.get("owner"),
@@ -584,6 +721,7 @@ def edit(idx: int):
         form = {
             "nazwa": ins.get("nazwa", ""),
             "nieruchomosc": ins.get("nieruchomosc", ""),
+            "property_id": ins.get("property_id", ""),
             "ostatnia_data": ins.get("ostatnia_data", ""),
             "czestotliwosc_miesiace": str(ins.get("czestotliwosc_miesiace", "")),
             "opis": ins.get("opis", ""),
@@ -631,6 +769,7 @@ def delete(idx: int):
         username,
         {
             "property": ins.get("nieruchomosc"),
+            "property_id": ins.get("property_id", ""),
             "name": ins.get("nazwa"),
             "owner": ins.get("owner"),
         },
@@ -665,6 +804,7 @@ def admin_properties():
         )
 
     if request.method == "POST":
+        changes = []
         for prop in properties:
             new_owner = request.form.get(
                 f"owner__{prop['slug']}", ""
@@ -675,13 +815,18 @@ def admin_properties():
                 if u.strip()
             ]
 
-            # zaktualizuj ownera we wszystkich przeglądach tej nieruchomości
             for ins in inspections:
                 if ins.get("nieruchomosc") == prop["name"]:
                     ins["owner"] = new_owner
 
-            # zapisz udostępnienia
             prop_access[prop["name"]] = shared_with
+            changes.append(
+                {
+                    "property": prop["name"],
+                    "owner": new_owner,
+                    "shared_with": shared_with,
+                }
+            )
 
         save_inspections(inspections)
         save_property_access(prop_access)
@@ -689,16 +834,7 @@ def admin_properties():
         log_event(
             "update_property_access",
             g.user["username"],
-            {
-                "properties": [
-                    {
-                        "property": prop["name"],
-                        "owner": prop.get("owner"),
-                        "shared_with": prop_access.get(prop["name"], []),
-                    }
-                    for prop in properties
-                ]
-            },
+            {"properties": changes},
         )
         return redirect(url_for("admin_properties"))
 
@@ -706,6 +842,52 @@ def admin_properties():
         "admin_properties.html",
         properties=properties,
         all_users=load_users(),
+    )
+
+
+@app.route("/admin/users", methods=["GET", "POST"])
+@login_required
+def admin_users():
+    if not is_admin(g.user):
+        return "Brak dostępu.", 403
+
+    users = load_users()
+    message = ""
+    error = ""
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        new_pin = (request.form.get("new_pin") or "").strip()
+
+        if not username:
+            error = "Wybierz użytkownika."
+        elif not new_pin:
+            error = "Podaj nowy PIN."
+        elif not new_pin.isdigit() or len(new_pin) < 4:
+            error = "PIN musi składać się z co najmniej 4 cyfr."
+        else:
+            user = find_user(username)
+            if not user:
+                error = "Użytkownik nie istnieje."
+            else:
+                for u in users:
+                    if u.get("username") == username:
+                        u["password"] = generate_password_hash(
+                            new_pin, method="pbkdf2:sha256"
+                        )
+                save_users(users)
+                log_event(
+                    "reset_pin",
+                    g.user["username"],
+                    {"target": username},
+                )
+                message = f"Zmieniono PIN użytkownika {username}."
+
+    return render_template(
+        "admin_users.html",
+        users=users,
+        message=message,
+        error=error,
     )
 
 
@@ -739,7 +921,6 @@ def login():
                     next_url = request.args.get("next") or url_for("index")
                     return redirect(next_url)
             except ValueError:
-                # np. nieobsługiwany format hash -> potraktuj jako błędne hasło
                 pass
 
         if request.method == "POST" and not errors:

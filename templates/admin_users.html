@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Użytkownicy - Panel admina</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Panel admina</span>
+        </div>
+        <div class="user-panel">
+          <a href="{{ url_for('index') }}" class="btn">⬅ Lista przeglądów</a>
+          <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
+
+      <h2>Użytkownicy</h2>
+
+      {% if message %}
+      <div class="flash success">{{ message }}</div>
+      {% endif %}
+      {% if error %}
+      <div class="flash error">{{ error }}</div>
+      {% endif %}
+
+      <table>
+        <thead>
+          <tr>
+            <th>Użytkownik</th>
+            <th>Rola</th>
+            <th>Akcja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>{{ u.username }}</td>
+            <td>{{ u.role }}</td>
+            <td>
+              <form method="POST" class="admin-user-form">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <input type="password" name="new_pin" minlength="4" pattern="\\d*" placeholder="nowy PIN" />
+                <button type="submit" class="btn btn-primary">Zresetuj PIN</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

@@ -356,3 +356,31 @@ textarea {
 .checkbox-row:hover {
   background: #f2f6ff;
 }
+
+.flash {
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.flash.success {
+  background: #e3f6e8;
+  color: #1b8a2f;
+}
+
+.flash.error {
+  background: #ffe5e9;
+  color: #b00020;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  gap: 10px;
+}
+
+.pager-buttons .btn + .btn {
+  margin-left: 6px;
+}
