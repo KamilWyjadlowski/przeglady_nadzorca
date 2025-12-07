@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, g
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from typing import List, Dict, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -81,16 +81,40 @@ def clean_empty_notes(text: str) -> str:
 
 
 def log_event(action: str, user: str, details: Dict):
-    """Zapis prostego logu audytowego w formacie JSON Lines."""
+    """Zapis logu audytowego w formacie JSON Lines z retencją 4 miesięcy."""
     entry = {
         "ts": datetime.utcnow().isoformat() + "Z",
         "action": action,
         "user": user,
         "details": details,
     }
+
+    cutoff = datetime.utcnow() - timedelta(days=120)
+    kept = []
+    if os.path.exists(AUDIT_FILE):
+        try:
+            with open(AUDIT_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        obj = json.loads(line)
+                        ts = obj.get("ts", "")
+                        dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).replace(
+                            tzinfo=None
+                        )
+                        if dt >= cutoff:
+                            kept.append(obj)
+                    except Exception:
+                        # pomiń uszkodzone linie
+                        pass
+        except Exception:
+            pass
+
+    kept.append(entry)
+
     try:
-        with open(AUDIT_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        with open(AUDIT_FILE, "w", encoding="utf-8") as f:
+            for obj in kept:
+                f.write(json.dumps(obj, ensure_ascii=False) + "\n")
     except Exception:
         pass  # nie blokuj głównego działania przy błędzie logowania
 
