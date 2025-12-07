@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Rejestracja - Nadzorca przeglądów</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <div class="container auth-container">
+      <div class="auth-card">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Alpha 1.0</span>
+        </div>
+
+        <h2>Załóż konto</h2>
+
+        <form method="post" class="form">
+          <div class="field">
+            <label for="username">Nazwa użytkownika</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value="{{ form.username }}"
+              autocomplete="username"
+            />
+            {% if errors.username %}
+            <div class="error">{{ errors.username }}</div>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            <label for="password">Hasło</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="new-password"
+            />
+            {% if errors.password %}
+            <div class="error">{{ errors.password }}</div>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            <label for="password_confirm">Powtórz hasło</label>
+            <input
+              type="password"
+              id="password_confirm"
+              name="password_confirm"
+              autocomplete="new-password"
+            />
+            {% if errors.password_confirm %}
+            <div class="error">{{ errors.password_confirm }}</div>
+            {% endif %}
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Utwórz konto</button>
+            <a href="{{ url_for('login') }}" class="btn">Mam już konto</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

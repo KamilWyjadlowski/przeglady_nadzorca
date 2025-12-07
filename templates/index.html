@@ -9,7 +9,20 @@
 
   <body>
     <div class="container">
-      <h1>Nadzorca przeglądów Kamila (Alpha 1.0)</h1>
+      <div class="topbar">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Alpha 1.0</span>
+        </div>
+        <div class="user-panel">
+          <div class="user-name">
+            Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
+          </div>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
 
       <div class="header-row">
         <h2>Lista przeglądów</h2>
@@ -101,10 +114,14 @@
             <th>Lp.</th>
             <th>Nieruchomość</th>
             <th>Nazwa</th>
+            {% if current_user and current_user.role == "admin" %}
+            <th>Właściciel</th>
+            {% endif %}
 
             <th>Segment</th>
             <th>Firma</th>
             <th>Kontakt</th>
+            <th>Udostępnione</th>
             <th>Ostatnia data</th>
             <th>Częstotliwość</th>
             <th>Kolejna data</th>
@@ -132,6 +149,9 @@
             <td>{{ loop.index }}</td>
             <td>{{ ins.nieruchomosc }}</td>
             <td>{{ ins.nazwa }}</td>
+            {% if current_user and current_user.role == "admin" %}
+            <td>{{ ins.owner or "-" }}</td>
+            {% endif %}
 
 
             <td>{{ ins.segment or "-" }}</td>
@@ -154,6 +174,15 @@
                 </div>
               {% else %}
               <span class="contact-none">Brak danych</span>
+              {% endif %}
+            </td>
+
+            <td>
+              {% set shared = ins.shared_with or [] %}
+              {% if shared %}
+                {{ shared | join(", ") }}
+              {% else %}
+                -
               {% endif %}
             </td>
 

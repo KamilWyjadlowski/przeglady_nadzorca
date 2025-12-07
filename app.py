@@ -1,12 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session, g
 import json
 import os
 from datetime import date
-from typing import List, Dict
+from functools import wraps
+from typing import List, Dict, Optional
+from werkzeug.security import generate_password_hash, check_password_hash
+from typing import List, Dict, Optional
 
 app = Flask(__name__)
-
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 DATA_FILE = "przeglady.json"
+USERS_FILE = "users.json"
 
 if not os.path.exists(DATA_FILE):
     if os.path.exists("przeglady.json"):
@@ -16,6 +20,10 @@ if not os.path.exists(DATA_FILE):
     else:
         with open(DATA_FILE, "w", encoding="utf-8") as dst:
             dst.write("[]")
+
+if not os.path.exists(USERS_FILE):
+    with open(USERS_FILE, "w", encoding="utf-8") as dst:
+        dst.write("[]")
 
 
 def parse_date(s: str) -> date:
@@ -66,7 +74,12 @@ def clean_empty_notes(text: str) -> str:
 def load_inspections() -> List[Dict]:
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            # Upewnij się, że shared_with jest listą
+            for ins in data:
+                if "shared_with" not in ins or not isinstance(ins.get("shared_with"), list):
+                    ins["shared_with"] = []
+            return data
     except FileNotFoundError:
         return []
 
@@ -74,6 +87,12 @@ def load_inspections() -> List[Dict]:
 def save_inspections(data: List[Dict]) -> None:
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def filter_by_owner(inspections: List[Dict], username: str) -> List[Dict]:
+    if not username:
+        return []
+    return [ins for ins in inspections if ins.get("owner") == username]
 
 
 def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
@@ -95,9 +114,79 @@ def get_unique(inspections: List[Dict], key: str) -> List[str]:
     return sorted({i.get(key, "") for i in inspections if i.get(key)})
 
 
+def load_users() -> List[Dict]:
+    try:
+        with open(USERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+def save_users(users: List[Dict]) -> None:
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
+
+
+def find_user(username: str) -> Optional[Dict]:
+    username = (username or "").strip()
+    for user in load_users():
+        if user.get("username") == username:
+            return user
+    return None
+
+
+def is_admin(user: Optional[Dict]) -> bool:
+    return bool(user) and user.get("role") == "admin"
+
+
+def user_can_access(user: Dict, inspection: Dict) -> bool:
+    """Czy użytkownik może zobaczyć/edytować przegląd."""
+    if is_admin(user):
+        return True
+    username = user.get("username")
+    return inspection.get("owner") == username or username in inspection.get("shared_with", [])
+
+
+def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
+    """Kto może zmieniać ownera i dostęp: admin lub właściciel."""
+    if is_admin(user):
+        return True
+    return inspection.get("owner") == user.get("username")
+
+
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        if not g.get("user"):
+            return redirect(url_for("login", next=request.path))
+        return view_func(*args, **kwargs)
+
+    return wrapper
+
+
+@app.before_request
+def load_logged_in_user():
+    username = session.get("username")
+    g.user = find_user(username) if username else None
+
+
+@app.context_processor
+def inject_user():
+    return {"current_user": g.get("user")}
+
+
 @app.route("/")
+@login_required
 def index():
-    inspections = load_inspections()
+    username = g.user["username"]
+    all_inspections = load_inspections()
+    inspections = []
+    for idx, ins in enumerate(all_inspections):
+        if not user_can_access(g.user, ins):
+            continue
+        row = ins.copy()
+        row["idx"] = idx  # global index w pliku
+        inspections.append(row)
 
     # FILTRY
     f_n = request.args.get("nieruchomosc", "").strip()
@@ -177,6 +266,7 @@ def index():
 
 def extract_form():
     """Czyści pobieranie danych z formularza i zwraca słownik."""
+    shared_raw = request.form.getlist("shared_with")
     return {
         "nazwa": request.form.get("nazwa", "").strip(),
         "nieruchomosc": request.form.get("nieruchomosc", "").strip(),
@@ -189,6 +279,8 @@ def extract_form():
         "telefon": request.form.get("telefon", "").strip(),
         "email": request.form.get("email", "").strip(),
         "segment": request.form.get("segment", "").strip(),
+        "owner": request.form.get("owner", "").strip(),
+        "shared_with": [u.strip() for u in shared_raw if u.strip()],
     }
 
 
@@ -236,24 +328,25 @@ def build_company_contacts(inspections):
 
 
 @app.route("/add", methods=["GET", "POST"])
+@login_required
 def add():
-    inspections = load_inspections()
+    username = g.user["username"]
+    inspections = [i for i in load_inspections() if user_can_access(g.user, i)]
     if request.method == "POST":
         form = extract_form()
     else:
         form = {
-            key: ""
-            for key in [
-                "nazwa",
-                "nieruchomosc",
-                "ostatnia_data",
-                "czestotliwosc_miesiace",
-                "opis",
-                "firma",
-                "telefon",
-                "email",
-                "segment",
-            ]
+            "nazwa": "",
+            "nieruchomosc": "",
+            "ostatnia_data": "",
+            "czestotliwosc_miesiace": "",
+            "opis": "",
+            "firma": "",
+            "telefon": "",
+            "email": "",
+            "segment": "",
+            "shared_with": [],
+            "owner": username,
         }
 
     errors = validate_form(form) if request.method == "POST" else {}
@@ -262,23 +355,29 @@ def add():
         freq = int(form["czestotliwosc_miesiace"])
         next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
 
-        inspections.append(
-            {
-                "nazwa": form["nazwa"],
-                "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
-                "ostatnia_data": form["ostatnia_data"],
-                "czestotliwosc_miesiace": freq,
-                "kolejna_data": next_dt,
-                "status": status,
-                "opis": clean_empty_notes(form["opis"]),
-                "firma": form["firma"],
-                "telefon": form["telefon"],
-                "email": form["email"],
-                "segment": form["segment"],
-            }
-        )
+        new_item = {
+            "nazwa": form["nazwa"],
+            "nieruchomosc": normalize_property_name(form["nieruchomosc"]),
+            "ostatnia_data": form["ostatnia_data"],
+            "czestotliwosc_miesiace": freq,
+            "kolejna_data": next_dt,
+            "status": status,
+            "opis": clean_empty_notes(form["opis"]),
+            "firma": form["firma"],
+            "telefon": form["telefon"],
+            "email": form["email"],
+            "segment": form["segment"],
+            "owner": form.get("owner") or username,
+            "shared_with": form.get("shared_with", []),
+        }
 
-        save_inspections(inspections)
+        if not is_admin(g.user):
+            new_item["owner"] = username
+            new_item["shared_with"] = []
+
+        all_inspections = load_inspections()
+        all_inspections.append(new_item)
+        save_inspections(all_inspections)
         return redirect(url_for("index"))
 
     return render_template(
@@ -290,17 +389,23 @@ def add():
         used_properties=get_unique(inspections, "nieruchomosc"),
         used_companies=get_unique(inspections, "firma"),
         company_contacts=build_company_contacts(inspections),
+        all_users=load_users(),
     )
 
 
 @app.route("/edit/<int:idx>", methods=["GET", "POST"])
+@login_required
 def edit(idx: int):
-    inspections = load_inspections()
+    username = g.user["username"]
+    all_inspections = load_inspections()
+    accessible = [i for i in all_inspections if user_can_access(g.user, i)]
 
-    if not (0 <= idx < len(inspections)):
+    if not (0 <= idx < len(all_inspections)):
         return "Nie znaleziono przeglądu.", 404
 
-    ins = inspections[idx]
+    ins = all_inspections[idx]
+    if not user_can_access(g.user, ins):
+        return "Brak dostępu do tego przeglądu.", 403
 
     if request.method == "POST":
         form = extract_form()
@@ -309,6 +414,12 @@ def edit(idx: int):
         if not errors:
             freq = int(form["czestotliwosc_miesiace"])
             next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
+
+            new_owner = form.get("owner") or ins.get("owner") or username
+            if not is_admin(g.user):
+                # zwykły użytkownik nie może zmieniać ownera ani udostępnień
+                new_owner = ins.get("owner", username)
+                form["shared_with"] = ins.get("shared_with", [])
 
             ins.update(
                 {
@@ -323,10 +434,13 @@ def edit(idx: int):
                     "telefon": form["telefon"],
                     "email": form["email"],
                     "segment": form["segment"],
+                    "owner": new_owner,
+                    "shared_with": form.get("shared_with", ins.get("shared_with", [])),
                 }
             )
 
-            save_inspections(inspections)
+            all_inspections[idx] = ins
+            save_inspections(all_inspections)
             return redirect(url_for("index"))
 
     else:
@@ -340,6 +454,8 @@ def edit(idx: int):
             "telefon": ins.get("telefon", ""),
             "email": ins.get("email", ""),
             "segment": ins.get("segment", ""),
+            "owner": ins.get("owner", username),
+            "shared_with": ins.get("shared_with", []),
         }
         errors = {}
 
@@ -348,23 +464,121 @@ def edit(idx: int):
         mode="edit",
         errors=errors,
         form=form,
-        used_names=get_unique(inspections, "nazwa"),
-        used_properties=get_unique(inspections, "nieruchomosc"),
-        used_companies=get_unique(inspections, "firma"),
-        company_contacts=build_company_contacts(inspections),
+        used_names=get_unique(accessible, "nazwa"),
+        used_properties=get_unique(accessible, "nieruchomosc"),
+        used_companies=get_unique(accessible, "firma"),
+        company_contacts=build_company_contacts(accessible),
+        all_users=load_users(),
     )
 
 
 @app.route("/delete/<int:idx>", methods=["POST"])
+@login_required
 def delete(idx: int):
-    inspections = load_inspections()
+    username = g.user["username"]
+    all_inspections = load_inspections()
 
-    if not (0 <= idx < len(inspections)):
+    if not (0 <= idx < len(all_inspections)):
         return "Nie znaleziono przeglądu.", 404
 
-    del inspections[idx]
-    save_inspections(inspections)
+    ins = all_inspections[idx]
+    if not user_can_access(g.user, ins):
+        return "Brak dostępu do tego przeglądu.", 403
+
+    del all_inspections[idx]
+    save_inspections(all_inspections)
     return redirect(url_for("index"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if g.get("user"):
+        return redirect(url_for("index"))
+
+    errors = {}
+    username = (
+        (request.form.get("username") or "").strip() if request.method == "POST" else ""
+    )
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if not username:
+            errors["username"] = "Podaj nazwę użytkownika."
+        if not password:
+            errors["password"] = "Podaj hasło."
+
+        user = find_user(username) if not errors else None
+        if user:
+            try:
+                if check_password_hash(user.get("password", ""), password):
+                    session["username"] = user["username"]
+                    next_url = request.args.get("next") or url_for("index")
+                    return redirect(next_url)
+            except ValueError:
+                # np. nieobsługiwany format hash -> potraktuj jako błędne hasło
+                pass
+
+        if request.method == "POST" and not errors:
+            errors["password"] = "Nieprawidłowy login lub hasło."
+
+    return render_template(
+        "login.html",
+        errors=errors,
+        form={"username": username},
+    )
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    errors = {}
+    form = {
+        "username": "",
+        "password": "",
+        "password_confirm": "",
+    }
+
+    if request.method == "POST":
+        form["username"] = (request.form.get("username") or "").strip()
+        form["password"] = request.form.get("password", "")
+        form["password_confirm"] = request.form.get("password_confirm", "")
+
+        if not form["username"]:
+            errors["username"] = "Podaj nazwę użytkownika."
+        elif find_user(form["username"]):
+            errors["username"] = "Użytkownik o takiej nazwie już istnieje."
+
+        if not form["password"]:
+            errors["password"] = "Podaj PIN (co najmniej 4 cyfry)."
+        elif not form["password"].isdigit():
+            errors["password"] = "PIN może zawierać tylko cyfry."
+        elif len(form["password"]) < 4:
+            errors["password"] = "PIN musi mieć co najmniej 4 cyfry."
+
+        if form["password"] != form["password_confirm"]:
+            errors["password_confirm"] = "Hasła muszą być takie same."
+
+        if not errors:
+            users = load_users()
+            users.append(
+                {
+                    "username": form["username"],
+                    "password": generate_password_hash(
+                        form["password"], method="pbkdf2:sha256"
+                    ),
+                    "role": "user",
+                }
+            )
+            save_users(users)
+            session["username"] = form["username"]
+            return redirect(url_for("index"))
+
+    return render_template("register.html", errors=errors, form=form)
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.pop("username", None)
+    return redirect(url_for("login"))
 
 
 if __name__ == "__main__":

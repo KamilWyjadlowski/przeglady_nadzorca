@@ -14,7 +14,20 @@
 
   <body>
     <div class="container">
-      <h1>Nadzorca przeglądów (wersja web)</h1>
+      <div class="topbar">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Alpha 1.0</span>
+        </div>
+        <div class="user-panel">
+          <div class="user-name">
+            Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
+          </div>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
 
       <h2>
         {% if mode == "add" %}Dodaj przegląd{% else %}Edytuj przegląd{% endif %}
@@ -75,6 +88,40 @@
   <div class="error">{{ errors.segment }}</div>
   {% endif %}
 </div>
+
+        {% if current_user and current_user.role == "admin" %}
+        <div class="field">
+          <label for="owner">Właściciel (admin)</label>
+          <select id="owner" name="owner">
+            {% for u in all_users %}
+            <option
+              value="{{ u.username }}"
+              {% if form.owner == u.username %}selected{% endif %}
+            >
+              {{ u.username }}{% if u.role == "admin" %} (admin){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="hint">Administrator może przepisać przegląd na innego użytkownika.</div>
+        </div>
+
+        <div class="field">
+          <label for="shared_with">Udostępnij użytkownikom</label>
+          <select id="shared_with" name="shared_with" multiple size="6">
+            {% for u in all_users %}
+              {% if u.username != form.owner %}
+              <option
+                value="{{ u.username }}"
+                {% if u.username in form.shared_with %}selected{% endif %}
+              >
+                {{ u.username }}
+              </option>
+              {% endif %}
+            {% endfor %}
+          </select>
+          <div class="hint">Przytrzymaj Ctrl/Cmd, aby wybrać wiele osób. Dostęp daje możliwość edycji.</div>
+        </div>
+        {% endif %}
 
         <div class="field">
           <label for="firma">Firma (opcjonalnie)</label>

@@ -17,6 +17,19 @@ body {
   box-shadow: none;
 }
 
+.auth-container {
+  max-width: 520px;
+  margin-top: 60px;
+}
+
+.auth-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
 h1 {
   margin-top: 0;
   font-size: 60px;
@@ -116,6 +129,51 @@ table td:nth-child(11) {
 
 .form {
   margin-top: 18px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+
+.tag {
+  display: inline-block;
+  background: #00000010;
+  color: #333;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.user-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #444;
+}
+
+.logout-form {
+  margin: 0;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #ccc;
 }
 
 .field {
