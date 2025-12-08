@@ -13,4 +13,5 @@ COPY . .
 # Cloud Run ustawia zmienną PORT
 ENV PORT=8080
 
-CMD ["gunicorn", "-b", "0.0.0.0:${PORT}", "app:app"]
+# używamy formy sh, by PORT został rozwinięty
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} app:app"]

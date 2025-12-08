@@ -30,9 +30,13 @@ DB_PORT = os.getenv("DB_PORT", "3306")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "przeglady")
-DB_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-engine = create_engine(DB_URL, pool_pre_ping=True, echo=False, future=True)
+# Budujemy URL w zależności od trybu (TCP lub unix socket /cloudsql/INSTANCE)
+if DB_HOST.startswith("/cloudsql/"):
+    DB_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?unix_socket={DB_HOST}"
+    engine = create_engine(DB_URL, pool_pre_ping=True, echo=False, future=True)
+else:
+    DB_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    engine = create_engine(DB_URL, pool_pre_ping=True, echo=False, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 Base = declarative_base()
 
