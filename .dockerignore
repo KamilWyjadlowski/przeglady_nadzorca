@@ -1,0 +1,16 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+.venv
+env
+venv
+*.sqlite
+*.db
+*.log
+Dockerfile
+migrate_to_mysql.py
+przeglady.json
+users.json
+property_access.json
+audit.log
