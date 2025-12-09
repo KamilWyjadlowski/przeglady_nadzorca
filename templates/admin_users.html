@@ -57,4 +57,12 @@
       </table>
     </div>
   </body>
+  {% if current_user %}
+  <script>
+    // automatyczne wylogowanie przy opuszczeniu strony
+    window.addEventListener("beforeunload", () => {
+      navigator.sendBeacon("{{ url_for('logout') }}", new Blob());
+    });
+  </script>
+  {% endif %}
 </html>

@@ -305,6 +305,13 @@
           if (e.target === modal) modal.classList.remove('show');
         });
       });
+
+      {% if current_user %}
+      // automatyczne wylogowanie przy opuszczeniu strony
+      window.addEventListener("beforeunload", () => {
+        navigator.sendBeacon("{{ url_for('logout') }}", new Blob());
+      });
+      {% endif %}
     </script>
   </body>
 </html>
