@@ -988,6 +988,11 @@ def calendar_view():
     ensure_occurrences_seed(db)
     prop_access = get_property_access_map(db)
     property_param = request.args.get("property", "").strip()
+    year_param = request.args.get("year")
+    try:
+        year = int(year_param) if year_param else date.today().year
+    except ValueError:
+        year = date.today().year
 
     # Lista dostępnych nieruchomości dla usera
     inspections = db.query(Inspection).all()
@@ -1014,10 +1019,20 @@ def calendar_view():
                 .count()
             )
             cards.append({"name": prop, "occ_count": count_occ})
-        return render_template("calendar.html", cards=cards, grouped=None, weeks_sorted=None, property_name=None)
+        return render_template("calendar.html", cards=cards, grouped=None, weeks_sorted=None, property_name=None, year=year, weeks=None, months=None, rows=None)
 
     # Widok konkretnej nieruchomości
     property_name = property_param
+    weeks = []
+    months = []
+    for w in range(1, 54):
+        try:
+            d = date.fromisocalendar(year, w, 1)
+            weeks.append(w)
+            months.append(d.strftime("%b"))
+        except ValueError:
+            continue
+
     events = []
     occurrences = (
         db.query(InspectionOccurrence, Inspection)
@@ -1031,30 +1046,59 @@ def calendar_view():
             continue
         if occ.status == "planned" and occ.due_date:
             iso_year, iso_week, _ = occ.due_date.isocalendar()
-            events.append(
-                {
-                    "week": iso_week,
-                    "year": iso_year,
-                    "date": occ.due_date,
-                    "name": ins.nazwa,
-                    "property": ins.nieruchomosc,
-                    "status": occ.status,
-                    "occ_id": occ.id,
-                }
-            )
+            if iso_year == year:
+                events.append(
+                    {
+                        "week": iso_week,
+                        "year": iso_year,
+                        "date": occ.due_date,
+                        "name": ins.nazwa,
+                        "property": ins.nieruchomosc,
+                        "status": occ.status,
+                        "occ_id": occ.id,
+                    }
+                )
+        if occ.status == "done" and occ.done_date:
+            iso_year, iso_week, _ = occ.done_date.isocalendar()
+            if iso_year == year:
+                events.append(
+                    {
+                        "week": iso_week,
+                        "year": iso_year,
+                        "date": occ.done_date,
+                        "name": ins.nazwa,
+                        "property": ins.nieruchomosc,
+                        "status": "done",
+                        "occ_id": occ.id,
+                    }
+                )
 
-    grouped = {}
+    # budujemy wiersze: każdy przegląd -> znaczniki w tygodniach
+    rows = {}
+    today = date.today()
     for evt in events:
-        key = (evt["year"], evt["week"])
-        grouped.setdefault(key, []).append(evt)
-    weeks_sorted = sorted(grouped.keys())
+        key = evt["name"]
+        if key not in rows:
+            rows[key] = {"full_name": evt["name"], "markers": {}}
+        status = evt["status"]
+        if status != "done":
+            if evt["date"] < today:
+                status = "overdue"
+        rows[key]["markers"][evt["week"]] = status
+
+    rows_list = []
+    for name, data in rows.items():
+        rows_list.append({"name": name, "markers": data["markers"]})
+    rows_list.sort(key=lambda r: r["name"].lower())
 
     return render_template(
         "calendar.html",
         cards=None,
-        grouped=grouped,
-        weeks_sorted=weeks_sorted,
         property_name=property_name,
+        year=year,
+        weeks=weeks,
+        months=months,
+        rows=rows_list,
     )
 
 

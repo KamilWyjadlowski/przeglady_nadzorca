@@ -34,24 +34,49 @@
           {% endif %}
         </div>
       {% else %}
-        <h2>Kalendarz dla: {{ property_name }}</h2>
+        <h2>Kalendarz dla: {{ property_name }} ({{ year }})</h2>
         <a href="{{ url_for('calendar_view') }}" class="btn">← Wybierz inną nieruchomość</a>
-        <div class="calendar-grid">
-          {% for year, week in weeks_sorted %}
-          <div class="calendar-week">
-            <div class="calendar-week-header">Tydzień {{ week }} / {{ year }}</div>
-            <ul>
-              {% for evt in grouped[(year, week)] %}
-              <li>
-                <span class="calendar-date">{{ evt.date.strftime("%d.%m.%Y") }}</span>
-                <strong>{{ evt.property }}</strong> — {{ evt.name }}
-              </li>
+
+        <div class="timeline">
+          <div class="timeline-row timeline-header">
+            <div class="timeline-label">Miesiąc</div>
+            <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
+              {% for m in months %}
+              <div class="timeline-cell month-cell">{{ m }}</div>
               {% endfor %}
-            </ul>
+            </div>
           </div>
-          {% endfor %}
-          {% if not weeks_sorted %}
-          <p>Brak planowanych wystąpień.</p>
+          <div class="timeline-row timeline-header">
+            <div class="timeline-label">Tydzień</div>
+            <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
+              {% for w in weeks %}
+              <div class="timeline-cell week-cell">{{ w }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          {% if rows %}
+            {% for row in rows %}
+            <div class="timeline-row">
+              <div class="timeline-label">
+                <span class="ellipsis" title="{{ row.name }}">{{ row.name }}</span>
+              </div>
+              <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
+                {% for w in weeks %}
+                  {% set st = row.markers.get(w) %}
+                  {% if st %}
+                    {% set cls = "marker-planned" %}
+                    {% if st == "done" %}{% set cls = "marker-done" %}{% elif st == "overdue" %}{% set cls = "marker-overdue" %}{% endif %}
+                    <div class="timeline-cell marker {{ cls }}" title="Tydzień {{ w }} — {{ row.name }}"></div>
+                  {% else %}
+                    <div class="timeline-cell"></div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p>Brak wystąpień w tym roku.</p>
           {% endif %}
         </div>
       {% endif %}
