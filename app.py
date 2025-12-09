@@ -989,10 +989,6 @@ def calendar_view():
     prop_access = get_property_access_map(db)
     property_param = request.args.get("property", "").strip()
     year_param = request.args.get("year")
-    try:
-        year = int(year_param) if year_param else date.today().year
-    except ValueError:
-        year = date.today().year
 
     # Lista dostępnych nieruchomości dla usera
     inspections = db.query(Inspection).all()
@@ -1019,10 +1015,45 @@ def calendar_view():
                 .count()
             )
             cards.append({"name": prop, "occ_count": count_occ})
-        return render_template("calendar.html", cards=cards, grouped=None, weeks_sorted=None, property_name=None, year=year, weeks=None, months=None, rows=None)
+        return render_template(
+            "calendar.html",
+            cards=cards,
+            property_name=None,
+            year=date.today().year,
+            weeks=None,
+            months=None,
+            rows=None,
+            years=None,
+        )
 
     # Widok konkretnej nieruchomości
     property_name = property_param
+    # dostępne lata z terminów/daty wykonania
+    available_years = set()
+    occurrences_all = (
+        db.query(InspectionOccurrence, Inspection)
+        .join(Inspection)
+        .filter(Inspection.nieruchomosc == property_name)
+        .all()
+    )
+    for occ, _ in occurrences_all:
+        if occ.due_date:
+            available_years.add(occ.due_date.isocalendar().year)
+        if occ.done_date:
+            available_years.add(occ.done_date.isocalendar().year)
+
+    today_year = date.today().year
+    if year_param:
+        try:
+            year = int(year_param)
+        except ValueError:
+            year = today_year
+    else:
+        if available_years:
+            year = today_year if today_year in available_years else max(available_years)
+        else:
+            year = today_year
+
     weeks = []
     months = []
     for w in range(1, 54):
@@ -1034,13 +1065,7 @@ def calendar_view():
             continue
 
     events = []
-    occurrences = (
-        db.query(InspectionOccurrence, Inspection)
-        .join(Inspection)
-        .filter(Inspection.nieruchomosc == property_name)
-        .all()
-    )
-    for occ, ins in occurrences:
+    for occ, ins in occurrences_all:
         ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
         if not user_can_access(g.user, ins_dict, prop_access):
             continue
@@ -1099,6 +1124,7 @@ def calendar_view():
         weeks=weeks,
         months=months,
         rows=rows_list,
+        years=sorted(available_years) if available_years else [year],
     )
 
 

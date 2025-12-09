@@ -534,3 +534,10 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.year-picker {
+  margin: 8px 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

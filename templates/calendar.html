@@ -36,6 +36,15 @@
       {% else %}
         <h2>Kalendarz dla: {{ property_name }} ({{ year }})</h2>
         <a href="{{ url_for('calendar_view') }}" class="btn">← Wybierz inną nieruchomość</a>
+        <form method="GET" class="year-picker">
+          <input type="hidden" name="property" value="{{ property_name }}">
+          <label for="year">Rok:</label>
+          <select name="year" id="year" onchange="this.form.submit()">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </form>
 
         <div class="timeline">
           <div class="timeline-row timeline-header">
