@@ -20,25 +20,41 @@
         </div>
       </div>
 
-      <h2>Najbliższe tygodnie</h2>
-      <div class="calendar-grid">
-        {% for year, week in weeks_sorted %}
-        <div class="calendar-week">
-          <div class="calendar-week-header">Tydzień {{ week }} / {{ year }}</div>
-          <ul>
-            {% for evt in grouped[(year, week)] %}
-            <li>
-              <span class="calendar-date">{{ evt.date.strftime("%d.%m.%Y") }}</span>
-              <strong>{{ evt.property }}</strong> — {{ evt.name }}
-            </li>
-            {% endfor %}
-          </ul>
+      {% if cards %}
+        <h2>Wybierz nieruchomość</h2>
+        <div class="card-grid">
+          {% for card in cards %}
+          <a class="card" href="{{ url_for('calendar_view', property=card.name) }}">
+            <div class="card-title">{{ card.name }}</div>
+            <div class="card-meta">{{ card.occ_count }} wystąpień</div>
+          </a>
+          {% endfor %}
+          {% if not cards %}
+          <p>Brak dostępnych nieruchomości.</p>
+          {% endif %}
         </div>
-        {% endfor %}
-        {% if not weeks_sorted %}
-        <p>Brak planowanych wystąpień.</p>
-        {% endif %}
-      </div>
+      {% else %}
+        <h2>Kalendarz dla: {{ property_name }}</h2>
+        <a href="{{ url_for('calendar_view') }}" class="btn">← Wybierz inną nieruchomość</a>
+        <div class="calendar-grid">
+          {% for year, week in weeks_sorted %}
+          <div class="calendar-week">
+            <div class="calendar-week-header">Tydzień {{ week }} / {{ year }}</div>
+            <ul>
+              {% for evt in grouped[(year, week)] %}
+              <li>
+                <span class="calendar-date">{{ evt.date.strftime("%d.%m.%Y") }}</span>
+                <strong>{{ evt.property }}</strong> — {{ evt.name }}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+          {% if not weeks_sorted %}
+          <p>Brak planowanych wystąpień.</p>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
   </body>
 </html>

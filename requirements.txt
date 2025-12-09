@@ -2,3 +2,5 @@ Flask
 gunicorn
 pymysql
 SQLAlchemy
+flask-session
+python-dotenv

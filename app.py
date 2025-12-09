@@ -979,13 +979,52 @@ def history(inspection_id: int):
 @app.route("/calendar")
 @login_required
 def calendar_view():
-    """Prosty widok 52-tygodniowy dla planowanych wystąpień."""
+    """
+    Widok kalendarza:
+    - bez parametru property pokazuje kafelki nieruchomości, do których user ma dostęp
+    - z parametrem ?property=XYZ pokazuje tygodniowy kalendarz wystąpień dla danej nieruchomości
+    """
     db = get_db()
     ensure_occurrences_seed(db)
     prop_access = get_property_access_map(db)
-    occurrences = db.query(InspectionOccurrence, Inspection).join(Inspection).all()
+    property_param = request.args.get("property", "").strip()
 
+    # Lista dostępnych nieruchomości dla usera
+    inspections = db.query(Inspection).all()
+    accessible_props = sorted(
+        {
+            ins.nieruchomosc
+            for ins in inspections
+            if user_can_access(
+                g.user,
+                {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner},
+                prop_access,
+            )
+        }
+    )
+
+    # Jeśli nie wybrano nieruchomości – pokaż kafelki
+    if not property_param:
+        cards = []
+        for prop in accessible_props:
+            count_occ = (
+                db.query(InspectionOccurrence)
+                .join(Inspection)
+                .filter(Inspection.nieruchomosc == prop)
+                .count()
+            )
+            cards.append({"name": prop, "occ_count": count_occ})
+        return render_template("calendar.html", cards=cards, grouped=None, weeks_sorted=None, property_name=None)
+
+    # Widok konkretnej nieruchomości
+    property_name = property_param
     events = []
+    occurrences = (
+        db.query(InspectionOccurrence, Inspection)
+        .join(Inspection)
+        .filter(Inspection.nieruchomosc == property_name)
+        .all()
+    )
     for occ, ins in occurrences:
         ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
         if not user_can_access(g.user, ins_dict, prop_access):
@@ -1004,17 +1043,18 @@ def calendar_view():
                 }
             )
 
-    # grupuj po tygodniu
     grouped = {}
     for evt in events:
         key = (evt["year"], evt["week"])
         grouped.setdefault(key, []).append(evt)
-
     weeks_sorted = sorted(grouped.keys())
+
     return render_template(
         "calendar.html",
+        cards=None,
         grouped=grouped,
         weeks_sorted=weeks_sorted,
+        property_name=property_name,
     )
 
 
