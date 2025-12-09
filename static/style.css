@@ -384,3 +384,28 @@ textarea {
 .pager-buttons .btn + .btn {
   margin-left: 6px;
 }
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.calendar-week {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fafbff;
+}
+
+.calendar-week-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.calendar-date {
+  display: inline-block;
+  width: 90px;
+  font-family: monospace;
+}

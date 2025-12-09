@@ -18,19 +18,18 @@ from sqlalchemy import (
     Text,
     JSON,
     ForeignKey,
+    func,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
-# DB CONFIG
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "przeglady")
-# Budujemy URL w zależności od trybu (TCP lub unix socket /cloudsql/INSTANCE)
 if DB_HOST.startswith("/cloudsql/"):
     DB_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?unix_socket={DB_HOST}"
     engine = create_engine(DB_URL, pool_pre_ping=True, echo=False, future=True)
@@ -81,6 +80,23 @@ class Audit(Base):
     action = Column(String(64), nullable=False)
     user = Column(String(100))
     details = Column(JSON)
+
+
+class InspectionOccurrence(Base):
+    __tablename__ = "inspection_occurrences"
+    id = Column(Integer, primary_key=True)
+    inspection_id = Column(Integer, ForeignKey("inspections.id"), nullable=False)
+    due_date = Column(Date, nullable=False)
+    done_date = Column(Date)
+    status = Column(String(32), nullable=False, default="planned")  # planned/done/overdue
+    note = Column(Text)
+    performed_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+    inspection = relationship("Inspection", backref="occurrences")
+
+
+# Tworzymy tabele, jeśli nie istnieją
+Base.metadata.create_all(bind=engine)
 
 
 def parse_date(s: str) -> date:
@@ -189,7 +205,9 @@ def get_or_create_property_id(db, prop_name: str) -> str:
 
     max_num = 0
     pat = re.compile(r"^P(\\d+)$")
-    for (pid,) in db.query(Inspection.property_id).filter(Inspection.property_id != None):
+    for (pid,) in db.query(Inspection.property_id).filter(
+        Inspection.property_id != None
+    ):
         m = pat.match(pid or "")
         if m:
             max_num = max(max_num, int(m.group(1)))
@@ -263,6 +281,38 @@ def get_db():
     return g.db
 
 
+def ensure_occurrences_for_inspection(db, ins: Inspection):
+    """Jeśli przegląd nie ma historii, twórz: wykonane (ostatnia_data) + planowane (kolejna_data)."""
+    if ins.occurrences:
+        return
+    if ins.ostatnia_data:
+        db.add(
+            InspectionOccurrence(
+                inspection_id=ins.id,
+                due_date=ins.ostatnia_data,
+                done_date=ins.ostatnia_data,
+                status="done",
+                performed_by=ins.owner,
+                note="Import historyczny",
+            )
+        )
+    if ins.kolejna_data:
+        db.add(
+            InspectionOccurrence(
+                inspection_id=ins.id,
+                due_date=ins.kolejna_data,
+                status="planned",
+                note="Plan automatyczny",
+            )
+        )
+    db.commit()
+
+
+def ensure_occurrences_seed(db):
+    for ins in db.query(Inspection).all():
+        ensure_occurrences_for_inspection(db, ins)
+
+
 def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
     last = parse_date(last_date_str)
     next_dt = add_months(last, freq)
@@ -326,6 +376,29 @@ def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
     return inspection.get("owner") == user.get("username")
 
 
+def add_new_planned_occurrence(db, ins: Inspection, done_date: date):
+    """Po wykonaniu generuje nowe planowane wystąpienie i aktualizuje przegląd."""
+    next_due = add_months(done_date, ins.czestotliwosc_miesiace)
+    ins.ostatnia_data = done_date
+    ins.kolejna_data = next_due
+    today = date.today()
+    if next_due < today:
+        ins.status = "Zaległy"
+    elif (next_due - today).days <= 30:
+        ins.status = "Nadchodzące"
+    else:
+        ins.status = "Aktualne"
+    db.add(
+        InspectionOccurrence(
+            inspection_id=ins.id,
+            due_date=next_due,
+            status="planned",
+            note="Plan po wykonaniu",
+        )
+    )
+    db.commit()
+
+
 def login_required(view_func):
     @wraps(view_func)
     def wrapper(*args, **kwargs):
@@ -340,6 +413,7 @@ def login_required(view_func):
 @login_required
 def index():
     db = get_db()
+    ensure_occurrences_seed(db)
     prop_access = get_property_access_map(db)
     inspections = []
     for ins in db.query(Inspection).all():
@@ -634,9 +708,12 @@ def add():
         )
         db.add(new_ins)
         db.commit()
+        ensure_occurrences_for_inspection(db, new_ins)
 
         if is_admin(g.user):
-            db.query(PropertyAccess).filter(PropertyAccess.nieruchomosc == prop_name).delete()
+            db.query(PropertyAccess).filter(
+                PropertyAccess.nieruchomosc == prop_name
+            ).delete()
             for u in form.get("property_shared_with", []):
                 db.add(PropertyAccess(nieruchomosc=prop_name, username=u))
             db.commit()
@@ -734,6 +811,17 @@ def edit(idx: int):
             ins_obj.owner = new_owner
 
             db.commit()
+            ensure_occurrences_for_inspection(db, ins_obj)
+            # zaktualizuj najbliższe planowane (jeśli jest) do nowej daty
+            upcoming = (
+                db.query(InspectionOccurrence)
+                .filter_by(inspection_id=ins_obj.id, status="planned")
+                .order_by(InspectionOccurrence.due_date.asc())
+                .first()
+            )
+            if upcoming:
+                upcoming.due_date = ins_obj.kolejna_data
+                db.commit()
 
             if is_admin(g.user):
                 db.query(PropertyAccess).filter(
@@ -761,9 +849,9 @@ def edit(idx: int):
         form = {
             "nazwa": ins_obj.nazwa,
             "nieruchomosc": ins_obj.nieruchomosc,
-            "ostatnia_data": ins_obj.ostatnia_data.isoformat()
-            if ins_obj.ostatnia_data
-            else "",
+            "ostatnia_data": (
+                ins_obj.ostatnia_data.isoformat() if ins_obj.ostatnia_data else ""
+            ),
             "czestotliwosc_miesiace": str(ins_obj.czestotliwosc_miesiace),
             "opis": ins_obj.opis or "",
             "firma": ins_obj.firma or "",
@@ -822,6 +910,114 @@ def delete(idx: int):
     return redirect(url_for("index"))
 
 
+@app.route("/occurrence/<int:occ_id>/complete", methods=["POST"])
+@login_required
+def complete_occurrence(occ_id: int):
+    db = get_db()
+    occ = db.query(InspectionOccurrence).filter_by(id=occ_id).first()
+    if not occ:
+        return "Brak wystąpienia.", 404
+
+    ins = db.query(Inspection).filter_by(id=occ.inspection_id).first()
+    if not ins:
+        return "Brak przeglądu.", 404
+
+    prop_access = get_property_access_map(db)
+    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    if not user_can_access(g.user, ins_dict, prop_access):
+        return "Brak dostępu.", 403
+
+    done_str = request.form.get("done_date", "").strip()
+    done_dt = date.today()
+    if done_str:
+        try:
+            done_dt = parse_date(done_str)
+        except ValueError as e:
+            return str(e), 400
+
+    occ.done_date = done_dt
+    occ.status = "done"
+    occ.performed_by = g.user.get("username")
+    db.commit()
+
+    add_new_planned_occurrence(db, ins, done_dt)
+    log_event(
+        "complete_occurrence",
+        g.user.get("username"),
+        {"inspection": ins.nazwa, "property": ins.nieruchomosc, "done_date": done_dt.isoformat()},
+        db_session=db,
+    )
+    return redirect(url_for("history", inspection_id=ins.id))
+
+
+@app.route("/history/<int:inspection_id>")
+@login_required
+def history(inspection_id: int):
+    db = get_db()
+    ins = db.query(Inspection).filter_by(id=inspection_id).first()
+    if not ins:
+        return "Nie znaleziono przeglądu.", 404
+    prop_access = get_property_access_map(db)
+    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    if not user_can_access(g.user, ins_dict, prop_access):
+        return "Brak dostępu.", 403
+
+    occurrences = (
+        db.query(InspectionOccurrence)
+        .filter_by(inspection_id=inspection_id)
+        .order_by(InspectionOccurrence.due_date.desc())
+        .all()
+    )
+    return render_template(
+        "history.html",
+        inspection=ins,
+        occurrences=occurrences,
+        today=date.today(),
+    )
+
+
+@app.route("/calendar")
+@login_required
+def calendar_view():
+    """Prosty widok 52-tygodniowy dla planowanych wystąpień."""
+    db = get_db()
+    ensure_occurrences_seed(db)
+    prop_access = get_property_access_map(db)
+    occurrences = db.query(InspectionOccurrence, Inspection).join(Inspection).all()
+
+    events = []
+    for occ, ins in occurrences:
+        ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+        if not user_can_access(g.user, ins_dict, prop_access):
+            continue
+        if occ.status == "planned" and occ.due_date:
+            iso_year, iso_week, _ = occ.due_date.isocalendar()
+            events.append(
+                {
+                    "week": iso_week,
+                    "year": iso_year,
+                    "date": occ.due_date,
+                    "name": ins.nazwa,
+                    "property": ins.nieruchomosc,
+                    "status": occ.status,
+                    "occ_id": occ.id,
+                }
+            )
+
+    # grupuj po tygodniu
+    grouped = {}
+    for evt in events:
+        key = (evt["year"], evt["week"])
+        grouped.setdefault(key, []).append(evt)
+
+    weeks_sorted = sorted(grouped.keys())
+    return render_template(
+        "calendar.html",
+        grouped=grouped,
+        weeks_sorted=weeks_sorted,
+    )
+
+
 @app.route("/admin/properties", methods=["GET", "POST"])
 @login_required
 def admin_properties():
@@ -842,9 +1038,7 @@ def admin_properties():
     )
 
     properties = []
-    for prop in sorted(
-        {ins.nieruchomosc for ins in inspections if ins.nieruchomosc}
-    ):
+    for prop in sorted({ins.nieruchomosc for ins in inspections if ins.nieruchomosc}):
         properties.append(
             {
                 "name": prop,
@@ -927,9 +1121,7 @@ def admin_users():
             if not user:
                 error = "Użytkownik nie istnieje."
             else:
-                user.password = generate_password_hash(
-                    new_pin, method="pbkdf2:sha256"
-                )
+                user.password = generate_password_hash(new_pin, method="pbkdf2:sha256")
                 db.commit()
                 log_event(
                     "reset_pin",
@@ -1022,13 +1214,17 @@ def register():
             db = get_db()
             new_u = User(
                 username=form["username"],
-                password=generate_password_hash(form["password"], method="pbkdf2:sha256"),
+                password=generate_password_hash(
+                    form["password"], method="pbkdf2:sha256"
+                ),
                 role="user",
             )
             db.add(new_u)
             db.commit()
             session["username"] = form["username"]
-            log_event("register", form["username"], {"ip": request.remote_addr}, db_session=db)
+            log_event(
+                "register", form["username"], {"ip": request.remote_addr}, db_session=db
+            )
             return redirect(url_for("index"))
 
     return render_template("register.html", errors=errors, form=form)

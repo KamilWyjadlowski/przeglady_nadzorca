@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Historia przeglądu</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <strong>Historia przeglądu</strong>
+          <span class="tag">{{ inspection.nazwa }} — {{ inspection.nieruchomosc }}</span>
+        </div>
+        <div class="user-panel">
+          <a href="{{ url_for('index') }}" class="btn">← Lista</a>
+          {% if current_user and current_user.role == "admin" %}
+          <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
+          {% endif %}
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
+
+      <h2>Historia wystąpień</h2>
+      <p>
+        Szablon: <strong>{{ inspection.nazwa }}</strong>,
+        nieruchomość: <strong>{{ inspection.nieruchomosc }}</strong>
+        (co {{ inspection.czestotliwosc_miesiace }} mies.)
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Termin</th>
+            <th>Wykonano</th>
+            <th>Status</th>
+            <th>Kto</th>
+            <th>Notatka</th>
+            <th>Akcja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for occ in occurrences %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ occ.due_date.strftime("%d.%m.%Y") if occ.due_date else "-" }}</td>
+            <td>{{ occ.done_date.strftime("%d.%m.%Y") if occ.done_date else "—" }}</td>
+            <td>{{ occ.status }}</td>
+            <td>{{ occ.performed_by or "—" }}</td>
+            <td>{{ occ.note or "—" }}</td>
+            <td>
+              {% if occ.status != "done" %}
+              <form method="POST" action="{{ url_for('complete_occurrence', occ_id=occ.id) }}" style="display:inline">
+                <input type="date" name="done_date" value="{{ today.isoformat() }}">
+                <button type="submit" class="btn btn-small">Oznacz jako wykonane</button>
+              </form>
+              {% else %}
+              —
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

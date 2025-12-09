@@ -18,6 +18,7 @@
           <div class="user-name">
             Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
           </div>
+          <a href="{{ url_for('calendar_view') }}" class="btn">Kalendarz</a>
           {% if current_user and current_user.role == "admin" %}
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
           <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
@@ -244,6 +245,11 @@
               >
                 <button type="submit" class="action-btn action-delete" title="Usuń">🗑</button>
               </form>
+              <a
+                href="{{ url_for('history', inspection_id=ins.id) }}"
+                class="action-btn"
+                title="Historia"
+              >📜</a>
             </td>
           </tr>
 
