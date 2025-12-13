@@ -1,3 +1,18 @@
 {
-  "sqltools.connections": []
+  "sqltools.connections": [
+    {
+      "mysqlOptions": {
+        "authProtocol": "default",
+        "enableSsl": "Disabled"
+      },
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "34.65.222.225",
+      "port": 3306,
+      "driver": "MySQL",
+      "name": "przeglady-cloud",
+      "database": "przeglady",
+      "username": "root"
+    }
+  ]
 }
