@@ -54,9 +54,11 @@
               <td>
                 <select name="owner__{{ prop.slug }}">
                   {% for u in all_users %}
-                  <option value="{{ u.username }}" {% if prop.owner == u.username %}selected{% endif %}>
-                    {{ u.username }}{% if u.role == "admin" %} (admin){% endif %}
-                  </option>
+                    {% if u.role != "admin" or prop.owner == u.username %}
+                    <option value="{{ u.username }}" {% if prop.owner == u.username %}selected{% endif %}>
+                      {{ u.username }}{% if u.role == "admin" %} (admin){% endif %}
+                    </option>
+                    {% endif %}
                   {% endfor %}
                 </select>
               </td>
