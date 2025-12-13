@@ -21,7 +21,7 @@
         </div>
       </div>
 
-      {% if cards %}
+      {% if cards is not none %}
         <h2>Wybierz nieruchomość</h2>
         <div class="card-grid">
           {% for card in cards %}
