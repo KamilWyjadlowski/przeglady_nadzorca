@@ -24,6 +24,7 @@
           <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
           {% endif %}
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>
         </div>
@@ -243,6 +244,7 @@
                 style="display: inline"
                 onsubmit="return confirm('Na pewno usunąć ten przegląd?');"
               >
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="action-btn action-delete" title="Usuń">🗑</button>
               </form>
               <a

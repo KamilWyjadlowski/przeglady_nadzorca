@@ -28,6 +28,7 @@
           <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
           {% endif %}
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>
         </div>
@@ -38,6 +39,7 @@
       </h2>
 
       <form method="post" class="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="field">
           <label for="nazwa">Nazwa przeglądu</label>
           <input

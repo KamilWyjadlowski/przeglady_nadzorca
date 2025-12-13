@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session, g
+import calendar
 import json
 import os
 import re
-import calendar
+import secrets
 from datetime import date, datetime, timedelta
 from functools import wraps
 from math import ceil
@@ -23,7 +24,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
+secret_from_env = os.getenv("SECRET_KEY")
+app.config["SECRET_KEY"] = secret_from_env or secrets.token_hex(32)
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
@@ -141,7 +143,7 @@ def clean_empty_notes(text: str) -> str:
 
 
 def normalize_phone(phone: str) -> str:
-    cleaned = re.sub(r"[\\s\\-()]", "", phone)
+    cleaned = re.sub(r"[\s\-()]", "", phone)
     if cleaned.startswith("+"):
         digits = cleaned[1:]
         prefix = "+"
@@ -224,6 +226,7 @@ def get_property_access_map(db) -> Dict[str, List[str]]:
 
 
 def find_user(username: str, db=None) -> Optional[Dict]:
+    username = (username or "").strip()
     if not username:
         return None
     db = db or get_db()
@@ -251,6 +254,15 @@ def setup_db():
     g.db = SessionLocal()
     username = session.get("username")
     g.user = find_user(username, db=g.db) if username else None
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_hex(16)
+        session["csrf_token"] = token
+    g.csrf_token = token
+    if request.method == "POST":
+        form_token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
+        if form_token != g.csrf_token:
+            return "Błędny token CSRF.", 400
 
 
 @app.teardown_appcontext
@@ -262,7 +274,7 @@ def teardown_db(exc):
 
 @app.context_processor
 def inject_user():
-    return {"current_user": g.get("user")}
+    return {"current_user": g.get("user"), "csrf_token": g.get("csrf_token")}
 
 
 def log_event(action: str, user: str, details: Dict, db_session=None):
@@ -281,10 +293,10 @@ def get_db():
     return g.db
 
 
-def ensure_occurrences_for_inspection(db, ins: Inspection):
+def ensure_occurrences_for_inspection(db, ins: Inspection, commit: bool = True) -> bool:
     """Jeśli przegląd nie ma historii, twórz: wykonane (ostatnia_data) + planowane (kolejna_data)."""
     if ins.occurrences:
-        return
+        return False
     if ins.ostatnia_data:
         db.add(
             InspectionOccurrence(
@@ -305,12 +317,17 @@ def ensure_occurrences_for_inspection(db, ins: Inspection):
                 note="Plan automatyczny",
             )
         )
-    db.commit()
+    if commit:
+        db.commit()
+    return True
 
 
 def ensure_occurrences_seed(db):
+    added = False
     for ins in db.query(Inspection).all():
-        ensure_occurrences_for_inspection(db, ins)
+        added = ensure_occurrences_for_inspection(db, ins, commit=False) or added
+    if added:
+        db.commit()
 
 
 def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
@@ -330,17 +347,6 @@ def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
 
 def get_unique(inspections: List[Dict], key: str) -> List[str]:
     return sorted({i.get(key, "") for i in inspections if i.get(key)})
-
-
-def find_user(username: str, db=None) -> Optional[Dict]:
-    username = (username or "").strip()
-    if not username:
-        return None
-    db = db or get_db()
-    user = db.query(User).filter_by(username=username).first()
-    if not user:
-        return None
-    return {"username": user.username, "role": user.role, "password": user.password}
 
 
 def compute_property_owner_map(inspections: List[Dict]) -> Dict[str, str]:
@@ -363,10 +369,6 @@ def slugify_property(prop: str) -> str:
         .replace(",", "_")
         .replace(":", "_")
     )
-
-
-def is_admin(user: Optional[Dict]) -> bool:
-    return bool(user) and user.get("role") == "admin"
 
 
 def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
@@ -479,7 +481,7 @@ def index():
 
         if ok:
             row = ins.copy()
-            row["idx"] = idx
+            row["idx"] = ins.get("id") or ins.get("idx")
             filtered.append(row)
 
     used_properties = get_unique(inspections, "nieruchomosc")
@@ -1349,4 +1351,5 @@ def logout():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug_flag = os.getenv("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+    app.run(debug=debug_flag)

@@ -64,6 +64,7 @@
             <td>
               {% if occ.status != "done" %}
               <form method="POST" action="{{ url_for('complete_occurrence', occ_id=occ.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="date" name="done_date" value="{{ today.isoformat() }}">
                 <button type="submit" class="btn btn-small">Oznacz jako wykonane</button>
               </form>

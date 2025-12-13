@@ -17,6 +17,7 @@
           <a href="{{ url_for('index') }}" class="btn">⬅ Lista przeglądów</a>
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>
         </div>
@@ -46,6 +47,7 @@
             <td>{{ u.role }}</td>
             <td>
               <form method="POST" class="admin-user-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="username" value="{{ u.username }}" />
                 <input type="password" name="new_pin" minlength="4" pattern="\\d*" placeholder="nowy PIN" />
                 <button type="submit" class="btn btn-primary">Zresetuj PIN</button>
