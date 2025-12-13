@@ -1021,6 +1021,88 @@ def complete_occurrence(occ_id: int):
     return redirect(url_for("history", inspection_id=ins.id))
 
 
+@app.route("/occurrence/<int:occ_id>/update", methods=["POST"])
+@login_required
+def update_occurrence(occ_id: int):
+    db = get_db()
+    occ = db.query(InspectionOccurrence).filter_by(id=occ_id).first()
+    if not occ:
+        return "Brak wystąpienia.", 404
+    ins = db.query(Inspection).filter_by(id=occ.inspection_id).first()
+    if not ins:
+        return "Brak przeglądu.", 404
+
+    prop_access = get_property_access_map(db)
+    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    if not user_can_access(g.user, ins_dict, prop_access):
+        return "Brak dostępu.", 403
+
+    due_raw = (request.form.get("due_date") or "").strip()
+    done_raw = (request.form.get("done_date") or "").strip()
+    status_raw = (request.form.get("status") or occ.status).strip()
+    note = (request.form.get("note") or "").strip()
+    performer = (request.form.get("performed_by") or "").strip()
+
+    try:
+        occ.due_date = parse_date(due_raw) if due_raw else occ.due_date
+    except ValueError as e:
+        return str(e), 400
+
+    if done_raw:
+        try:
+            occ.done_date = parse_date(done_raw)
+        except ValueError as e:
+            return str(e), 400
+    elif status_raw != "done":
+        occ.done_date = None
+
+    allowed_status = {"planned", "done", "overdue"}
+    occ.status = status_raw if status_raw in allowed_status else occ.status
+    occ.note = note
+    occ.performed_by = performer
+
+    db.commit()
+    log_event(
+        "update_occurrence",
+        g.user.get("username"),
+        {
+            "inspection": ins.nazwa,
+            "property": ins.nieruchomosc,
+            "occurrence_id": occ.id,
+            "status": occ.status,
+        },
+        db_session=db,
+    )
+    return redirect(url_for("history", inspection_id=ins.id))
+
+
+@app.route("/occurrence/<int:occ_id>/delete", methods=["POST"])
+@login_required
+def delete_occurrence(occ_id: int):
+    db = get_db()
+    occ = db.query(InspectionOccurrence).filter_by(id=occ_id).first()
+    if not occ:
+        return "Brak wystąpienia.", 404
+    ins = db.query(Inspection).filter_by(id=occ.inspection_id).first()
+    if not ins:
+        return "Brak przeglądu.", 404
+
+    prop_access = get_property_access_map(db)
+    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    if not user_can_access(g.user, ins_dict, prop_access):
+        return "Brak dostępu.", 403
+
+    db.delete(occ)
+    db.commit()
+    log_event(
+        "delete_occurrence",
+        g.user.get("username"),
+        {"inspection": ins.nazwa, "property": ins.nieruchomosc, "occurrence_id": occ_id},
+        db_session=db,
+    )
+    return redirect(url_for("history", inspection_id=ins.id))
+
+
 @app.route("/history/<int:inspection_id>")
 @login_required
 def history(inspection_id: int):
