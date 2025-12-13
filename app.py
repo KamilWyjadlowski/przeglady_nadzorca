@@ -1433,6 +1433,67 @@ def admin_users():
     )
 
 
+@app.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    db = get_db()
+    user_obj = db.query(User).filter_by(username=g.user["username"]).first()
+    if not user_obj:
+        return redirect(url_for("logout"))
+
+    errors = {}
+    message = ""
+    form = {
+        "username": user_obj.username,
+        "email": user_obj.email or "",
+        "new_pin": "",
+    }
+
+    if request.method == "POST":
+        form["username"] = (request.form.get("username") or "").strip()
+        form["email"] = (request.form.get("email") or "").strip()
+        form["new_pin"] = (request.form.get("new_pin") or "").strip()
+
+        if not form["username"]:
+            errors["username"] = "Nazwa użytkownika jest wymagana."
+        else:
+            exists = (
+                db.query(User)
+                .filter(User.username == form["username"], User.id != user_obj.id)
+                .first()
+            )
+            if exists:
+                errors["username"] = "Taka nazwa jest już używana."
+
+        if form["email"]:
+            if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", form["email"]):
+                errors["email"] = "Podaj poprawny adres e-mail."
+
+        if form["new_pin"]:
+            if not form["new_pin"].isdigit() or len(form["new_pin"]) < 4:
+                errors["new_pin"] = "PIN musi składać się z co najmniej 4 cyfr."
+
+        if not errors:
+            before_username = user_obj.username
+            user_obj.username = form["username"]
+            user_obj.email = form["email"] or None
+            if form["new_pin"]:
+                user_obj.password = generate_password_hash(
+                    form["new_pin"], method="pbkdf2:sha256"
+                )
+            db.commit()
+            session["username"] = user_obj.username
+            log_event(
+                "update_profile",
+                user_obj.username,
+                {"username_before": before_username, "email": user_obj.email},
+                db_session=db,
+            )
+            message = "Zapisano zmiany."
+
+    return render_template("profile.html", form=form, errors=errors, message=message)
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if g.get("user"):

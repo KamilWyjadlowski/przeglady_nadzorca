@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Profil użytkownika</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+
+  <body>
+    <div class="container auth-container">
+      <div class="auth-card">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Profil</span>
+        </div>
+
+        <h2>Twoje dane</h2>
+
+        {% if message %}
+        <div class="flash success">{{ message }}</div>
+        {% endif %}
+        {% if errors.username or errors.email or errors.new_pin %}
+        <div class="flash error">Popraw zaznaczone pola.</div>
+        {% endif %}
+
+        <form method="post" class="form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+          <div class="field">
+            <label for="username">Nazwa użytkownika</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value="{{ form.username }}"
+              autocomplete="username"
+            />
+            {% if errors.username %}
+            <div class="error">{{ errors.username }}</div>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            <label for="email">E-mail powiadomień (opcjonalnie)</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value="{{ form.email }}"
+              autocomplete="email"
+            />
+            {% if errors.email %}
+            <div class="error">{{ errors.email }}</div>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            <label for="new_pin">Nowy PIN (opcjonalnie)</label>
+            <input
+              type="password"
+              id="new_pin"
+              name="new_pin"
+              minlength="4"
+              pattern="\\d*"
+              placeholder="pozostaw puste bez zmiany"
+              autocomplete="new-password"
+            />
+            {% if errors.new_pin %}
+            <div class="error">{{ errors.new_pin }}</div>
+            {% endif %}
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Zapisz</button>
+            <a href="{{ url_for('index') }}" class="btn">Anuluj</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
