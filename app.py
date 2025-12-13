@@ -894,6 +894,8 @@ def delete(idx: int):
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu do tego przeglądu.", 403
 
+    # Usuń historię/wystąpienia powiązane z przeglądem, by uniknąć błędów FK
+    db.query(InspectionOccurrence).filter_by(inspection_id=ins.id).delete()
     db.delete(ins)
     db.commit()
     log_event(

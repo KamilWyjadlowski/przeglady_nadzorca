@@ -48,7 +48,17 @@
             <td>{{ loop.index }}</td>
             <td>{{ occ.due_date.strftime("%d.%m.%Y") if occ.due_date else "-" }}</td>
             <td>{{ occ.done_date.strftime("%d.%m.%Y") if occ.done_date else "—" }}</td>
-            <td>{{ occ.status }}</td>
+            <td>
+              {% if occ.status == "done" %}
+                Wykonany
+              {% elif occ.status == "planned" %}
+                Zaplanowany
+              {% elif occ.status == "overdue" %}
+                Zaległy
+              {% else %}
+                {{ occ.status }}
+              {% endif %}
+            </td>
             <td>{{ occ.performed_by or "—" }}</td>
             <td>{{ occ.note or "—" }}</td>
             <td>
