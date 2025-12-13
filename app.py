@@ -216,14 +216,13 @@ def ensure_properties_table(engine):
 
 
 ensure_properties_table(engine)
+
+
 def ensure_users_email_column(engine):
     with engine.begin() as conn:
-        conn.exec_driver_sql(
-            """
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-            """
-        )
+        res = conn.exec_driver_sql("SHOW COLUMNS FROM users LIKE 'email'").fetchone()
+        if not res:
+            conn.exec_driver_sql("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
 
 
 ensure_users_email_column(engine)
