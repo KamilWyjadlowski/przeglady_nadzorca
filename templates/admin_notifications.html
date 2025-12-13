@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Powiadomienia - Panel admina</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <strong>Nadzorca przeglądów</strong>
+          <span class="tag">Powiadomienia</span>
+        </div>
+        <div class="user-panel">
+          <a href="{{ url_for('index') }}" class="btn">⬅ Lista przeglądów</a>
+          <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
+          <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
+          <a href="{{ url_for('profile') }}" class="btn">Profil</a>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
+
+      <h2>Szablon powiadomień e-mail</h2>
+      <p>Możesz użyć zmiennych: <code>{name}</code> (nazwa przeglądu), <code>{property}</code> (nieruchomość), <code>{due}</code> (termin).</p>
+
+      {% if message %}
+      <div class="flash success">{{ message }}</div>
+      {% endif %}
+      {% if error %}
+      <div class="flash error">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="field">
+          <label for="email_upcoming_subject">Temat maila</label>
+          <input
+            type="text"
+            id="email_upcoming_subject"
+            name="email_upcoming_subject"
+            value="{{ form.email_upcoming_subject }}"
+          />
+        </div>
+
+        <div class="field">
+          <label for="email_upcoming_header">Nagłówek maila</label>
+          <input
+            type="text"
+            id="email_upcoming_header"
+            name="email_upcoming_header"
+            value="{{ form.email_upcoming_header }}"
+          />
+        </div>
+
+        <div class="field">
+          <label for="email_upcoming_line">Linia dla pojedynczego przeglądu</label>
+          <input
+            type="text"
+            id="email_upcoming_line"
+            name="email_upcoming_line"
+            value="{{ form.email_upcoming_line }}"
+          />
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Zapisz</button>
+          <a href="{{ url_for('index') }}" class="btn">Anuluj</a>
+        </div>
+      </form>
+    </div>
+  </body>
+</html>

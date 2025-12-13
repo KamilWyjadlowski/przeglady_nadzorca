@@ -93,6 +93,13 @@ class Property(Base):
     segment = Column(String(32))
 
 
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    id = Column(Integer, primary_key=True)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text)
+
+
 class Audit(Base):
     __tablename__ = "audit"
     id = Column(Integer, primary_key=True)
@@ -226,6 +233,22 @@ def ensure_properties_table(engine):
 ensure_properties_table(engine)
 
 
+def ensure_settings_table(engine):
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS app_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                `key` VARCHAR(100) UNIQUE NOT NULL,
+                value TEXT
+            ) CHARACTER SET utf8mb4;
+            """
+        )
+
+
+ensure_settings_table(engine)
+
+
 def ensure_users_email_column(engine):
     with engine.begin() as conn:
         res = conn.exec_driver_sql("SHOW COLUMNS FROM users LIKE 'email'").fetchone()
@@ -292,6 +315,21 @@ def ensure_property_record(db, name: str, property_id: str = "", segment: str = 
     return prop
 
 
+def get_setting_value(db, key: str, default: str = "") -> str:
+    setting = db.query(AppSetting).filter_by(key=key).first()
+    return setting.value if setting and setting.value is not None else default
+
+
+def set_setting_value(db, key: str, value: str):
+    setting = db.query(AppSetting).filter_by(key=key).first()
+    if not setting:
+        setting = AppSetting(key=key, value=value)
+        db.add(setting)
+    else:
+        setting.value = value
+    db.commit()
+
+
 def get_recipients_for_inspection(db, ins: Inspection) -> list[str]:
     recipients = []
     owner_user = db.query(User).filter_by(username=ins.owner).first()
@@ -318,15 +356,19 @@ def flush_mail_queue():
     batch = getattr(g, "mail_batch", None)
     if not batch:
         return
-    subject = "Nadchodzące przeglądy"
+    db = get_db()
+    subject = get_setting_value(db, "email_upcoming_subject", "Nadchodzące przeglądy")
+    header = get_setting_value(
+        db,
+        "email_upcoming_header",
+        "Poniższe przeglądy zmieniły status na Nadchodzące:",
+    )
     for recipient, lines in batch.items():
         msg = EmailMessage()
         msg["From"] = SMTP_FROM
         msg["To"] = recipient
         msg["Subject"] = subject
-        body = "Poniższe przeglądy zmieniły status na Nadchodzące:\n\n" + "\n".join(
-            f"- {l}" for l in lines
-        )
+        body = header + "\n\n" + "\n".join(f"- {l}" for l in lines)
         msg.set_content(body)
         try:
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
@@ -347,7 +389,16 @@ def send_upcoming_notification(db, ins: Inspection, previous_status: str | None)
     recipients = get_recipients_for_inspection(db, ins)
     if not recipients:
         return
-    line = f"{ins.nazwa} — {ins.nieruchomosc} (termin: {ins.kolejna_data.strftime('%Y-%m-%d') if ins.kolejna_data else '-'})"
+    line_tmpl = get_setting_value(
+        db,
+        "email_upcoming_line",
+        default="{name} — {property} (termin: {due})",
+    )
+    line = line_tmpl.format(
+        name=ins.nazwa,
+        property=ins.nieruchomosc,
+        due=ins.kolejna_data.strftime("%Y-%m-%d") if ins.kolejna_data else "-",
+    )
     enqueue_email(recipients, line)
 
 
@@ -1506,6 +1557,38 @@ def admin_users():
     return render_template(
         "admin_users.html",
         users=users,
+        message=message,
+        error=error,
+    )
+
+
+@app.route("/admin/notifications", methods=["GET", "POST"])
+@login_required
+def admin_notifications():
+    if not is_admin(g.user):
+        return "Brak dostępu.", 403
+
+    db = get_db()
+    defaults = {
+        "email_upcoming_subject": "Nadchodzące przeglądy",
+        "email_upcoming_header": "Poniższe przeglądy zmieniły status na Nadchodzące:",
+        "email_upcoming_line": "{name} — {property} (termin: {due})",
+    }
+    form = {
+        k: get_setting_value(db, k, v) for k, v in defaults.items()
+    }
+    message = ""
+    error = ""
+
+    if request.method == "POST":
+        for k in defaults.keys():
+            form[k] = (request.form.get(k) or defaults[k]).strip()
+            set_setting_value(db, k, form[k])
+        message = "Zapisano szablon powiadomień."
+
+    return render_template(
+        "admin_notifications.html",
+        form=form,
         message=message,
         error=error,
     )
