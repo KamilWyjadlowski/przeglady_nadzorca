@@ -1,7 +1,18 @@
-from flask import Flask, render_template, request, redirect, url_for, session, g
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    g,
+    Response,
+)
 import calendar
 import smtplib
 import json
+import csv
+import io
 import os
 import re
 import secrets
@@ -634,14 +645,13 @@ def login_required(view_func):
     return wrapper
 
 
-@app.route("/")
-@login_required
-def index():
-    db = get_db()
+def load_inspections_for_user(db, user):
+    """Zwraca listę przeglądów dostępnych dla użytkownika (dane słownikowe)."""
     ensure_occurrences_seed(db)
     ensure_properties_seed(db)
     prop_access = get_property_access_map(db)
     prop_segments = get_property_segment_map(db)
+
     inspections = []
     for ins in db.query(Inspection).all():
         seg_val = prop_segments.get(ins.nieruchomosc) or ins.segment or ""
@@ -661,25 +671,24 @@ def index():
             "segment": seg_val,
             "owner": ins.owner,
         }
-        if user_can_access(g.user, ins_dict, prop_access):
+        if user_can_access(user, ins_dict, prop_access):
             ins_dict["idx"] = ins.id
             inspections.append(ins_dict)
+    return inspections
 
-    f_n = request.args.get("nieruchomosc", "").strip()
-    f_name = request.args.get("nazwa", "").strip()
-    f_status = request.args.get("status", "").strip()
-    f_uwagi = request.args.get("uwagi", "").strip()
-    f_segment = request.args.get("segment", "").strip()
-    f_q = request.args.get("q", "").strip().lower()
-    sort_by = request.args.get("sort", "default")
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except ValueError:
-        page = 1
-    per_page = 15
+
+def filter_inspections(inspections, args):
+    """Filtruje i sortuje listę przeglądów na podstawie parametrów requestu."""
+    f_n = args.get("nieruchomosc", "").strip()
+    f_name = args.get("nazwa", "").strip()
+    f_status = args.get("status", "").strip()
+    f_uwagi = args.get("uwagi", "").strip()
+    f_segment = args.get("segment", "").strip()
+    f_q = args.get("q", "").strip().lower()
+    sort_by = args.get("sort", "default")
 
     filtered = []
-    for idx, ins in enumerate(inspections):
+    for ins in inspections:
         opis = (ins.get("opis") or "").strip()
         ok = True
 
@@ -709,11 +718,6 @@ def index():
             row = ins.copy()
             row["idx"] = ins.get("id") or ins.get("idx")
             filtered.append(row)
-
-    used_properties = get_unique(inspections, "nieruchomosc")
-    used_names = get_unique(inspections, "nazwa")
-    used_status = get_unique(inspections, "status")
-    used_segments = get_unique(inspections, "segment")
 
     status_order = {
         "Zaległy": 0,
@@ -752,6 +756,33 @@ def index():
                 ins.get("nazwa", ""),
             )
         )
+    return filtered
+
+
+@app.route("/")
+@login_required
+def index():
+    db = get_db()
+    inspections = load_inspections_for_user(db, g.user)
+    filtered = filter_inspections(inspections, request.args)
+
+    f_n = request.args.get("nieruchomosc", "").strip()
+    f_name = request.args.get("nazwa", "").strip()
+    f_status = request.args.get("status", "").strip()
+    f_uwagi = request.args.get("uwagi", "").strip()
+    f_segment = request.args.get("segment", "").strip()
+    f_q = request.args.get("q", "").strip().lower()
+    sort_by = request.args.get("sort", "default")
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+    per_page = 15
+
+    used_properties = get_unique(inspections, "nieruchomosc")
+    used_names = get_unique(inspections, "nazwa")
+    used_status = get_unique(inspections, "status")
+    used_segments = get_unique(inspections, "segment")
 
     total = len(filtered)
     total_pages = max(1, ceil(total / per_page)) if total else 1
@@ -785,6 +816,56 @@ def index():
         next_url=next_url,
         total_items=total,
         per_page=per_page,
+        args_dict=args_dict,
+    )
+
+
+@app.route("/export")
+@login_required
+def export_csv():
+    db = get_db()
+    inspections = load_inspections_for_user(db, g.user)
+    filtered = filter_inspections(inspections, request.args)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "ID",
+            "Nieruchomość",
+            "Nazwa",
+            "Segment",
+            "Firma",
+            "Telefon",
+            "Email",
+            "Ostatnia data",
+            "Kolejna data",
+            "Status",
+            "Uwagi",
+        ]
+    )
+    for ins in filtered:
+        writer.writerow(
+            [
+                ins.get("id") or ins.get("idx"),
+                ins.get("nieruchomosc", ""),
+                ins.get("nazwa", ""),
+                ins.get("segment", ""),
+                ins.get("firma", ""),
+                ins.get("telefon", ""),
+                ins.get("email", ""),
+                ins.get("ostatnia_data", ""),
+                ins.get("kolejna_data", ""),
+                ins.get("status", ""),
+                (ins.get("opis") or "").replace("\n", " ").strip(),
+            ]
+        )
+
+    csv_data = output.getvalue()
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=przeglady.csv"},
     )
 
 

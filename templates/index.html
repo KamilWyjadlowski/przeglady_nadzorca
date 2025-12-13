@@ -34,7 +34,14 @@
 
       <div class="header-row">
         <h2>Lista przeglądów</h2>
-        <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
+        <div class="header-actions">
+          <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
+          <a
+            href="{{ url_for('export_csv', **(args_dict or {})) }}"
+            class="btn btn-ghost"
+            >⬇️ Eksport CSV</a
+          >
+        </div>
       </div>
 
       <form method="GET" class="filters">
