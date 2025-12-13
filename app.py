@@ -334,6 +334,27 @@ def set_setting_value(db, key: str, value: str):
     db.commit()
 
 
+def send_direct_email(to_list: list[str], subject: str, body: str):
+    if not to_list or not SMTP_PASSWORD:
+        return False
+    msg = EmailMessage()
+    msg["From"] = SMTP_FROM
+    msg["To"] = ", ".join(to_list)
+    msg["Subject"] = subject
+    msg.set_content(body)
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            if SMTP_TLS:
+                server.starttls()
+            if SMTP_USER:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+        return True
+    except Exception:
+        app.logger.exception("SMTP direct send error to %s", to_list)
+        return False
+
+
 def get_recipients_for_inspection(db, ins: Inspection) -> list[str]:
     recipients = []
     owner_user = db.query(User).filter_by(username=ins.owner).first()
@@ -1558,8 +1579,8 @@ def admin_users():
     error = ""
 
     if request.method == "POST":
+        action = request.form.get("action") or "update"
         username = (request.form.get("username") or "").strip()
-        new_email = (request.form.get("email") or "").strip()
         new_pin = (request.form.get("new_pin") or "").strip()
 
         if not username:
@@ -1568,7 +1589,7 @@ def admin_users():
             user = db.query(User).filter_by(username=username).first()
             if not user:
                 error = "Użytkownik nie istnieje."
-            else:
+            elif action == "update":
                 if new_pin:
                     if not new_pin.isdigit() or len(new_pin) < 4:
                         error = "PIN musi składać się z co najmniej 4 cyfr."
@@ -1584,6 +1605,19 @@ def admin_users():
                         )
                         message = f"Zmieniono PIN użytkownika {username}."
                 db.commit()
+            elif action == "test_email":
+                if not user.email:
+                    error = "Użytkownik nie ma ustawionego e-maila."
+                else:
+                    ok = send_direct_email(
+                        [user.email],
+                        "Test powiadomień Nadzorca",
+                        "To jest testowy e-mail z aplikacji Nadzorca przeglądów.",
+                    )
+                    if ok:
+                        message = f"Wysłano testowy e-mail do {user.email}."
+                    else:
+                        error = "Nie udało się wysłać maila (sprawdź konfigurację SMTP)."
 
     return render_template(
         "admin_users.html",

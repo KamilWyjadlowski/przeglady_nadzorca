@@ -50,8 +50,15 @@
               <form method="POST" class="admin-user-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="username" value="{{ u.username }}" />
+                <input type="hidden" name="action" value="update" />
                 <input type="password" name="new_pin" minlength="4" pattern="\\d*" placeholder="nowy PIN" />
                 <button type="submit" class="btn btn-primary">Zresetuj PIN</button>
+              </form>
+              <form method="POST" class="admin-user-form" style="margin-top:6px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <input type="hidden" name="action" value="test_email" />
+                <button type="submit" class="btn">Próbny mail</button>
               </form>
             </td>
           </tr>
