@@ -94,6 +94,14 @@ DDL = [
         details JSON
     ) CHARACTER SET utf8mb4;
     """,
+    """
+    CREATE TABLE IF NOT EXISTS properties (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        property_id VARCHAR(32),
+        segment VARCHAR(32)
+    ) CHARACTER SET utf8mb4;
+    """,
 ]
 
 

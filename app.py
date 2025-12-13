@@ -75,6 +75,14 @@ class PropertyAccess(Base):
     username = Column(String(100), nullable=False)
 
 
+class Property(Base):
+    __tablename__ = "properties"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False)
+    property_id = Column(String(32))
+    segment = Column(String(32))
+
+
 class Audit(Base):
     __tablename__ = "audit"
     id = Column(Integer, primary_key=True)
@@ -191,6 +199,23 @@ def property_id_state(inspections: List[Dict]) -> tuple[Dict[str, str], int]:
     return mapping, max_num
 
 
+def ensure_properties_table(engine):
+    with engine.begin() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS properties (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) UNIQUE NOT NULL,
+                property_id VARCHAR(32),
+                segment VARCHAR(32)
+            ) CHARACTER SET utf8mb4;
+            """
+        )
+
+
+ensure_properties_table(engine)
+
+
 def get_or_create_property_id(db, prop_name: str) -> str:
     prop_name = normalize_property_name(prop_name)
     existing = (
@@ -210,6 +235,8 @@ def get_or_create_property_id(db, prop_name: str) -> str:
         if m:
             max_num = max(max_num, int(m.group(1)))
     max_num += 1
+    # zaktualizuj property_id w tabeli properties
+    ensure_property_record(db, prop_name, property_id=f"P{max_num:04d}")
     return f"P{max_num:04d}"
 
 
@@ -219,6 +246,30 @@ def get_property_access_map(db) -> Dict[str, List[str]]:
     for row in rows:
         result.setdefault(row.nieruchomosc, []).append(row.username)
     return result
+
+
+def get_property_segment_map(db) -> Dict[str, str]:
+    return {p.name: (p.segment or "") for p in db.query(Property).all()}
+
+
+def ensure_property_record(db, name: str, property_id: str = "", segment: str = ""):
+    name_norm = normalize_property_name(name)
+    prop = db.query(Property).filter_by(name=name_norm).first()
+    updated = False
+    if not prop:
+        prop = Property(name=name_norm, property_id=property_id or None, segment=segment or None)
+        db.add(prop)
+        updated = True
+    else:
+        if property_id and prop.property_id != property_id:
+            prop.property_id = property_id
+            updated = True
+        if segment and prop.segment != segment:
+            prop.segment = segment
+            updated = True
+    if updated:
+        db.commit()
+    return prop
 
 
 def find_user(username: str, db=None) -> Optional[Dict]:
@@ -326,6 +377,16 @@ def ensure_occurrences_seed(db):
         db.commit()
 
 
+def ensure_properties_seed(db):
+    for ins in db.query(Inspection).all():
+        ensure_property_record(
+            db,
+            ins.nieruchomosc,
+            property_id=ins.property_id or "",
+            segment=ins.segment or "",
+        )
+
+
 def compute_next_and_status(last_date_str: str, freq: int) -> tuple[str, str]:
     last = parse_date(last_date_str)
     next_dt = add_months(last, freq)
@@ -412,7 +473,9 @@ def login_required(view_func):
 def index():
     db = get_db()
     ensure_occurrences_seed(db)
+    ensure_properties_seed(db)
     prop_access = get_property_access_map(db)
+    prop_segments = get_property_segment_map(db)
     inspections = []
     for ins in db.query(Inspection).all():
         ins_dict = {
@@ -428,7 +491,7 @@ def index():
             "firma": ins.firma or "",
             "telefon": ins.telefon or "",
             "email": ins.email or "",
-            "segment": ins.segment or "",
+            "segment": seg_val,
             "owner": ins.owner,
         }
         if user_can_access(g.user, ins_dict, prop_access):
@@ -640,8 +703,10 @@ def build_company_contacts(inspections):
 def add():
     db = get_db()
     prop_access_map = get_property_access_map(db)
+    prop_segments = get_property_segment_map(db)
     inspections = []
     for ins in db.query(Inspection).all():
+        seg_val = prop_segments.get(ins.nieruchomosc) or ins.segment or ""
         ins_dict = {
             "nazwa": ins.nazwa,
             "nieruchomosc": ins.nieruchomosc,
@@ -651,7 +716,7 @@ def add():
             "firma": ins.firma or "",
             "telefon": ins.telefon or "",
             "email": ins.email or "",
-            "segment": ins.segment or "",
+            "segment": seg_val,
             "owner": ins.owner,
         }
         if user_can_access(g.user, ins_dict, prop_access_map):
@@ -683,6 +748,8 @@ def add():
 
         prop_name = normalize_property_name(form["nieruchomosc"])
         pid = get_or_create_property_id(db, prop_name)
+        seg_val = form["segment"]
+        ensure_property_record(db, prop_name, property_id=pid, segment=seg_val)
 
         owner_val = form.get("owner") or g.user["username"]
         if not is_admin(g.user):
@@ -701,7 +768,7 @@ def add():
             firma=form["firma"],
             telefon=form["telefon"],
             email=form["email"],
-            segment=form["segment"],
+            segment=seg_val,
             owner=owner_val,
         )
         db.add(new_ins)
@@ -787,12 +854,14 @@ def edit(idx: int):
             before_owner = ins_obj.owner
 
             new_owner = form.get("owner") or ins_obj.owner
+            seg_val = form["segment"]
             if not is_admin(g.user):
                 new_owner = ins_obj.owner
                 form["property_shared_with"] = prop_access.get(ins_obj.nieruchomosc, [])
 
             new_prop_name = normalize_property_name(form["nieruchomosc"])
             pid = ins_obj.property_id or get_or_create_property_id(db, new_prop_name)
+            ensure_property_record(db, new_prop_name, property_id=pid, segment=seg_val)
 
             ins_obj.nazwa = form["nazwa"]
             ins_obj.nieruchomosc = new_prop_name
@@ -805,7 +874,7 @@ def edit(idx: int):
             ins_obj.firma = form["firma"]
             ins_obj.telefon = form["telefon"]
             ins_obj.email = form["email"]
-            ins_obj.segment = form["segment"]
+            ins_obj.segment = seg_val
             ins_obj.owner = new_owner
 
             db.commit()
@@ -1135,6 +1204,7 @@ def admin_properties():
         return "Brak dostępu.", 403
 
     db = get_db()
+    ensure_properties_seed(db)
     inspections = db.query(Inspection).all()
     prop_access = get_property_access_map(db)
     owners_map = compute_property_owner_map(
@@ -1155,6 +1225,7 @@ def admin_properties():
                 "slug": slugify_property(prop),
                 "owner": owners_map.get(prop, ""),
                 "shared_with": prop_access.get(prop, []),
+                "segment": (db.query(Property.segment).filter_by(name=prop).scalar() or ""),
                 "count": sum(1 for ins in inspections if ins.nieruchomosc == prop),
             }
         )
@@ -1171,9 +1242,13 @@ def admin_properties():
                 if u.strip()
             ]
 
+            new_segment = request.form.get(f"segment__{prop['slug']}", "").strip()
+
             db.query(Inspection).filter(Inspection.nieruchomosc == prop["name"]).update(
-                {"owner": new_owner}
+                {"owner": new_owner, "segment": new_segment}
             )
+
+            ensure_property_record(db, prop["name"], segment=new_segment)
 
             db.query(PropertyAccess).filter(
                 PropertyAccess.nieruchomosc == prop["name"]

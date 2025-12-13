@@ -33,6 +33,7 @@
             <tr>
               <th>Nieruchomość</th>
               <th>Przeglądy</th>
+              <th>Segment</th>
               <th>Właściciel</th>
               <th>Udostępnione</th>
             </tr>
@@ -42,6 +43,13 @@
             <tr>
               <td>{{ prop.name }}</td>
               <td>{{ prop.count }}</td>
+              <td>
+                <select name="segment__{{ prop.slug }}">
+                  <option value="">(brak)</option>
+                  <option value="Detal" {% if prop.segment == "Detal" %}selected{% endif %}>Detal</option>
+                  <option value="Hurt" {% if prop.segment == "Hurt" %}selected{% endif %}>Hurt</option>
+                </select>
+              </td>
               <td>
                 <select name="owner__{{ prop.slug }}">
                   {% for u in all_users %}
