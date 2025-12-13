@@ -20,6 +20,7 @@ from sqlalchemy import (
     JSON,
     ForeignKey,
     func,
+    text,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
@@ -201,7 +202,7 @@ def property_id_state(inspections: List[Dict]) -> tuple[Dict[str, str], int]:
 
 def ensure_properties_table(engine):
     with engine.begin() as conn:
-        conn.execute(
+        conn.exec_driver_sql(
             """
             CREATE TABLE IF NOT EXISTS properties (
                 id INT AUTO_INCREMENT PRIMARY KEY,
