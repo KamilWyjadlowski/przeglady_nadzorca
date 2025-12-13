@@ -148,16 +148,17 @@ def migrate():
     ensure_property_ids(inspections)
 
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE TABLE users")
-        cur.execute("TRUNCATE TABLE inspections")
-        cur.execute("TRUNCATE TABLE property_access")
-        cur.execute("TRUNCATE TABLE audit")
+        # Czyścimy w kolejności dziecko -> rodzic, bez kolizji FK
+        cur.execute("DELETE FROM inspection_occurrences")
+        cur.execute("DELETE FROM inspections")
+        cur.execute("DELETE FROM property_access")
+        cur.execute("DELETE FROM audit")
 
-        if users:
-            cur.executemany(
-                "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
-                [(u["username"], u["password"], u.get("role", "user")) for u in users],
-            )
+        # Resetujemy AUTO_INCREMENT
+        cur.execute("ALTER TABLE inspection_occurrences AUTO_INCREMENT = 1")
+        cur.execute("ALTER TABLE inspections AUTO_INCREMENT = 1")
+        cur.execute("ALTER TABLE property_access AUTO_INCREMENT = 1")
+        cur.execute("ALTER TABLE audit AUTO_INCREMENT = 1")
 
         if inspections:
             cur.executemany(
