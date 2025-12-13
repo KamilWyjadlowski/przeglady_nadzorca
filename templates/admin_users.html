@@ -37,6 +37,7 @@
         <thead>
           <tr>
             <th>Użytkownik</th>
+            <th>E-mail</th>
             <th>Rola</th>
             <th>Akcja</th>
           </tr>
@@ -45,6 +46,7 @@
           {% for u in users %}
           <tr>
             <td>{{ u.username }}</td>
+            <td>{{ u.email or "—" }}</td>
             <td>{{ u.role }}</td>
             <td>
               <form method="POST" class="admin-user-form">
