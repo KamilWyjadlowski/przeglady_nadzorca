@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, g
 import calendar
+import smtplib
 import json
 import os
 import re
@@ -8,6 +9,7 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 from math import ceil
 from typing import List, Dict, Optional
+from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import (
     create_engine,
@@ -33,6 +35,12 @@ DB_PORT = os.getenv("DB_PORT", "3306")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "przeglady")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "nadzorca.przegladow@gmail.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
+SMTP_TLS = os.getenv("SMTP_TLS", "true").lower() in ("1", "true", "yes")
 if DB_HOST.startswith("/cloudsql/"):
     DB_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?unix_socket={DB_HOST}"
     engine = create_engine(DB_URL, pool_pre_ping=True, echo=False, future=True)
@@ -284,6 +292,56 @@ def ensure_property_record(db, name: str, property_id: str = "", segment: str = 
     return prop
 
 
+def get_recipients_for_inspection(db, ins: Inspection) -> list[str]:
+    recipients = []
+    owner_user = db.query(User).filter_by(username=ins.owner).first()
+    if owner_user and owner_user.email:
+        recipients.append(owner_user.email)
+    for pa in db.query(PropertyAccess).filter_by(nieruchomosc=ins.nieruchomosc).all():
+        u = db.query(User).filter_by(username=pa.username).first()
+        if u and u.email:
+            recipients.append(u.email)
+    # dedupe
+    return sorted({r.strip() for r in recipients if r.strip()})
+
+
+def send_email(to_list: list[str], subject: str, body: str):
+    if not to_list or not SMTP_PASSWORD:
+        return
+    msg = EmailMessage()
+    msg["From"] = SMTP_FROM
+    msg["To"] = ", ".join(to_list)
+    msg["Subject"] = subject
+    msg.set_content(body)
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            if SMTP_TLS:
+                server.starttls()
+            if SMTP_USER:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+    except Exception:
+        # w logach można dodać logger.exception, ale nie blokujemy żądania
+        pass
+
+
+def send_upcoming_notification(db, ins: Inspection, previous_status: str | None):
+    if ins.status != "Nadchodzące":
+        return
+    if previous_status == "Nadchodzące":
+        return
+    recipients = get_recipients_for_inspection(db, ins)
+    if not recipients:
+        return
+    subj = f"Nadchodzący przegląd: {ins.nazwa} — {ins.nieruchomosc}"
+    body = (
+        f"Przegląd: {ins.nazwa}\n"
+        f"Nieruchomość: {ins.nieruchomosc}\n"
+        f"Termin: {ins.kolejna_data.strftime('%Y-%m-%d') if ins.kolejna_data else '-'}\n"
+    )
+    send_email(recipients, subj, body)
+
+
 def find_user(username: str, db=None) -> Optional[Dict]:
     username = (username or "").strip()
     if not username:
@@ -449,6 +507,7 @@ def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
 
 def add_new_planned_occurrence(db, ins: Inspection, done_date: date):
     """Po wykonaniu generuje nowe planowane wystąpienie i aktualizuje przegląd."""
+    before_status = ins.status
     next_due = add_months(done_date, ins.czestotliwosc_miesiace)
     ins.ostatnia_data = done_date
     ins.kolejna_data = next_due
@@ -468,6 +527,7 @@ def add_new_planned_occurrence(db, ins: Inspection, done_date: date):
         )
     )
     db.commit()
+    send_upcoming_notification(db, ins, previous_status=before_status)
 
 
 def login_required(view_func):
@@ -671,7 +731,7 @@ def validate_form(form):
 
     email = form.get("email", "")
     if email:
-        if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", email):
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
             errors["email"] = "Podaj poprawny adres e-mail."
 
     phone = form.get("telefon", "")
@@ -735,11 +795,11 @@ def add():
         if user_can_access(g.user, ins_dict, prop_access_map):
             inspections.append(ins_dict)
 
-    if request.method == "POST":
-        form = extract_form()
-    else:
-        form = {
-            "nazwa": "",
+        if request.method == "POST":
+            form = extract_form()
+        else:
+            form = {
+                "nazwa": "",
             "nieruchomosc": "",
             "ostatnia_data": "",
             "czestotliwosc_miesiace": "",
@@ -758,6 +818,7 @@ def add():
     if request.method == "POST" and not errors:
         freq = int(form["czestotliwosc_miesiace"])
         next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
+        seg_val = form["segment"]
 
         prop_name = normalize_property_name(form["nieruchomosc"])
         pid = get_or_create_property_id(db, prop_name)
@@ -787,6 +848,7 @@ def add():
         db.add(new_ins)
         db.commit()
         ensure_occurrences_for_inspection(db, new_ins)
+        send_upcoming_notification(db, new_ins, previous_status=None)
 
         if is_admin(g.user):
             db.query(PropertyAccess).filter(
@@ -865,6 +927,7 @@ def edit(idx: int):
             freq = int(form["czestotliwosc_miesiace"])
             next_dt, status = compute_next_and_status(form["ostatnia_data"], freq)
             before_owner = ins_obj.owner
+            before_status = ins_obj.status
 
             new_owner = form.get("owner") or ins_obj.owner
             seg_val = form["segment"]
@@ -923,6 +986,7 @@ def edit(idx: int):
                 },
                 db_session=db,
             )
+            send_upcoming_notification(db, ins_obj, previous_status=before_status)
             return redirect(url_for("index"))
 
     else:
@@ -1411,7 +1475,7 @@ def admin_users():
                         )
                         message = f"Zmieniono PIN użytkownika {username}."
                 if new_email:
-                    if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", new_email):
+                    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", new_email):
                         error = "Podaj poprawny adres e-mail."
                     else:
                         user.email = new_email
@@ -1466,7 +1530,7 @@ def profile():
                 errors["username"] = "Taka nazwa jest już używana."
 
         if form["email"]:
-            if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", form["email"]):
+            if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", form["email"]):
                 errors["email"] = "Podaj poprawny adres e-mail."
 
         if form["new_pin"]:
