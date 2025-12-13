@@ -49,6 +49,7 @@ class User(Base):
     username = Column(String(100), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="user")
+    email = Column(String(255))
 
 
 class Inspection(Base):
@@ -215,6 +216,17 @@ def ensure_properties_table(engine):
 
 
 ensure_properties_table(engine)
+def ensure_users_email_column(engine):
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+            """
+        )
+
+
+ensure_users_email_column(engine)
 
 
 def get_or_create_property_id(db, prop_name: str) -> str:
@@ -1377,28 +1389,42 @@ def admin_users():
 
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
+        new_email = (request.form.get("email") or "").strip()
         new_pin = (request.form.get("new_pin") or "").strip()
 
         if not username:
             error = "Wybierz użytkownika."
-        elif not new_pin:
-            error = "Podaj nowy PIN."
-        elif not new_pin.isdigit() or len(new_pin) < 4:
-            error = "PIN musi składać się z co najmniej 4 cyfr."
         else:
             user = db.query(User).filter_by(username=username).first()
             if not user:
                 error = "Użytkownik nie istnieje."
             else:
-                user.password = generate_password_hash(new_pin, method="pbkdf2:sha256")
+                if new_pin:
+                    if not new_pin.isdigit() or len(new_pin) < 4:
+                        error = "PIN musi składać się z co najmniej 4 cyfr."
+                    else:
+                        user.password = generate_password_hash(new_pin, method="pbkdf2:sha256")
+                        log_event(
+                            "reset_pin",
+                            g.user["username"],
+                            {"target": username},
+                            db_session=db,
+                        )
+                        message = f"Zmieniono PIN użytkownika {username}."
+                if new_email:
+                    if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", new_email):
+                        error = "Podaj poprawny adres e-mail."
+                    else:
+                        user.email = new_email
+                        log_event(
+                            "update_email",
+                            g.user["username"],
+                            {"target": username},
+                            db_session=db,
+                        )
+                        if not message:
+                            message = f"Zaktualizowano e-mail użytkownika {username}."
                 db.commit()
-                log_event(
-                    "reset_pin",
-                    g.user["username"],
-                    {"target": username},
-                    db_session=db,
-                )
-                message = f"Zmieniono PIN użytkownika {username}."
 
     return render_template(
         "admin_users.html",
@@ -1455,12 +1481,14 @@ def register():
     errors = {}
     form = {
         "username": "",
+        "email": "",
         "password": "",
         "password_confirm": "",
     }
 
     if request.method == "POST":
         form["username"] = (request.form.get("username") or "").strip()
+        form["email"] = (request.form.get("email") or "").strip()
         form["password"] = request.form.get("password", "")
         form["password_confirm"] = request.form.get("password_confirm", "")
 
@@ -1468,6 +1496,11 @@ def register():
             errors["username"] = "Podaj nazwę użytkownika."
         elif find_user(form["username"]):
             errors["username"] = "Użytkownik o takiej nazwie już istnieje."
+
+        email_val = form["email"]
+        if email_val:
+            if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email_val):
+                errors["email"] = "Podaj poprawny adres e-mail."
 
         if not form["password"]:
             errors["password"] = "Podaj PIN (co najmniej 4 cyfry)."
@@ -1487,6 +1520,7 @@ def register():
                     form["password"], method="pbkdf2:sha256"
                 ),
                 role="user",
+                email=form["email"],
             )
             db.add(new_u)
             db.commit()

@@ -36,6 +36,20 @@
           </div>
 
           <div class="field">
+            <label for="email">E-mail powiadomień (opcjonalnie)</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value="{{ form.email }}"
+              autocomplete="email"
+            />
+            {% if errors.email %}
+            <div class="error">{{ errors.email }}</div>
+            {% endif %}
+          </div>
+
+          <div class="field">
             <label for="password">Hasło</label>
             <input
               type="password"
