@@ -382,7 +382,7 @@ def flush_mail_queue():
                     server.login(SMTP_USER, SMTP_PASSWORD)
                 server.send_message(msg)
         except Exception:
-            pass
+            app.logger.exception("SMTP send error to %s", recipient)
 
 
 def send_upcoming_notification(db, ins: Inspection, previous_status: str | None):
