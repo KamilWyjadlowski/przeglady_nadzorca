@@ -144,6 +144,8 @@
       </form>
 
       {% if inspections %}
+      <div class="table-card">
+      <div class="table-wrapper">
       <table>
         <thead>
           <tr>
@@ -267,6 +269,8 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
+      </div>
 
       <div class="pagination">
         <div>Pozycje: {{ total_items }} | Strona {{ page }} z {{ total_pages }}</div>

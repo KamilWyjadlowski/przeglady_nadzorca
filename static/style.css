@@ -1,20 +1,21 @@
 @import url("https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css");
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f5f5f5;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(145deg, #eef2f7, #f8fafc);
   margin: 20px;
   font-size: 16px;
+  color: #1f2937;
 }
 
 .container {
-  width: 90%;
-  max-width: 90%;
-  margin: 0 auto;
+  width: 94%;
+  max-width: 1200px;
+  margin: 0 auto 32px;
   background: #ffffff;
-  padding: 20px;
-  border-radius: 0;
-  box-shadow: none;
+  padding: 24px 26px;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
 }
 
 .auth-container {
@@ -46,27 +47,37 @@ h2 {
   gap: 10px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 18px;
+  margin-top: 8px;
 }
 
 th,
 td {
-  border-bottom: 1px solid #000000;
-  padding: 30px 15px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 12px;
   text-align: center;
-  font-size: 20px;
+  font-size: 15px;
 }
 
 th {
-  background: #00000060;
-  font-weight: 600;
+  background: #f8fafc;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 13px;
+  color: #475569;
 }
 
 tr:nth-child(even) {
-  background: #00000020;
+  background: #f8fafc;
 }
 
 table th:nth-child(1),
@@ -118,13 +129,18 @@ table td:nth-child(11) {
 .filters {
   margin-bottom: 20px;
   display: flex;
-  gap: 20px;
+  gap: 16px;
   flex-wrap: wrap;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
 }
 
 .filters label {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  color: #475569;
 }
 
 .form {
@@ -136,7 +152,9 @@ table td:nth-child(11) {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .brand {
@@ -148,23 +166,24 @@ table td:nth-child(11) {
 
 .tag {
   display: inline-block;
-  background: #00000010;
-  color: #333;
+  background: #e0f2fe;
+  color: #0f172a;
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 12px;
   letter-spacing: 0.5px;
+  border: 1px solid #bfdbfe;
 }
 
 .user-panel {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .user-name {
   font-size: 14px;
-  color: #444;
+  color: #334155;
 }
 
 .logout-form {
@@ -173,7 +192,7 @@ table td:nth-child(11) {
 
 .btn-ghost {
   background: transparent;
-  border: 1px solid #ccc;
+  border: 1px solid #cbd5e1;
 }
 
 .field {
@@ -218,24 +237,46 @@ textarea {
 
 .btn {
   display: inline-block;
-  padding: 8px 14px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  background: #fafafa;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
   font-size: 14px;
   cursor: pointer;
   text-decoration: none;
-  color: #333;
+  color: #0f172a;
+  transition: all 0.15s ease;
+}
+
+.btn:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .btn-primary {
-  background: #0066cc;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
-  border-color: #0055aa;
+  border-color: #1d4ed8;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
 }
 
 .btn + .btn {
   margin-left: 8px;
+}
+
+.table-card {
+  margin-top: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
 }
 
 .date-input-wrapper {
