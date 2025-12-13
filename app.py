@@ -682,6 +682,8 @@ def filter_inspections(inspections, args):
     f_n = args.get("nieruchomosc", "").strip()
     f_name = args.get("nazwa", "").strip()
     f_status = args.get("status", "").strip()
+    status_param_present = "status" in args
+    default_statuses = {"Zaległy", "Nadchodzące"}
     f_uwagi = args.get("uwagi", "").strip()
     f_segment = args.get("segment", "").strip()
     f_q = args.get("q", "").strip().lower()
@@ -696,8 +698,12 @@ def filter_inspections(inspections, args):
             ok = False
         if f_name and ins.get("nazwa") != f_name:
             ok = False
-        if f_status and ins.get("status") != f_status:
-            ok = False
+        if status_param_present:
+            if f_status and ins.get("status") != f_status:
+                ok = False
+        else:
+            if ins.get("status") not in default_statuses:
+                ok = False
         if f_uwagi == "tak" and opis.lower() in ("", "brak uwag"):
             ok = False
         if f_uwagi == "nie" and opis.lower() not in ("", "brak uwag"):
@@ -759,6 +765,66 @@ def filter_inspections(inspections, args):
     return filtered
 
 
+def build_property_cards(inspections, args):
+    """Przygotowuje kafelki nieruchomości z licznikami statusów."""
+    current_property = args.get("nieruchomosc", "").strip()
+    base_args = args.to_dict()
+    base_args.pop("page", None)
+
+    cards_map: Dict[str, Dict] = {}
+    for ins in inspections:
+        prop = ins.get("nieruchomosc")
+        if not prop:
+            continue
+
+        entry = cards_map.setdefault(
+            prop,
+            {
+                "name": prop,
+                "segment": ins.get("segment") or "",
+                "property_id": ins.get("property_id") or "",
+                "overdue": 0,
+                "upcoming": 0,
+                "current": 0,
+                "total": 0,
+                "next_due": None,
+            },
+        )
+        status = ins.get("status")
+        if status == "Zaległy":
+            entry["overdue"] += 1
+        elif status == "Nadchodzące":
+            entry["upcoming"] += 1
+        elif status:
+            entry["current"] += 1
+        entry["total"] += 1
+
+        due_raw = ins.get("kolejna_data")
+        if due_raw:
+            try:
+                due_date = date.fromisoformat(due_raw)
+                if entry["next_due"] is None or due_date < entry["next_due"]:
+                    entry["next_due"] = due_date
+            except ValueError:
+                pass
+
+    cards: List[Dict] = []
+    for prop in sorted(cards_map.keys()):
+        data = cards_map[prop]
+        params = base_args.copy()
+        params["nieruchomosc"] = prop
+        next_label = data["next_due"].strftime("%d.%m.%Y") if data["next_due"] else ""
+        cards.append(
+            {
+                **data,
+                "link": url_for("index", **params),
+                "active": current_property == prop,
+                "next_due_label": next_label,
+            }
+        )
+    return cards
+
+
 @app.route("/")
 @login_required
 def index():
@@ -766,13 +832,6 @@ def index():
     inspections = load_inspections_for_user(db, g.user)
     filtered = filter_inspections(inspections, request.args)
 
-    f_n = request.args.get("nieruchomosc", "").strip()
-    f_name = request.args.get("nazwa", "").strip()
-    f_status = request.args.get("status", "").strip()
-    f_uwagi = request.args.get("uwagi", "").strip()
-    f_segment = request.args.get("segment", "").strip()
-    f_q = request.args.get("q", "").strip().lower()
-    sort_by = request.args.get("sort", "default")
     try:
         page = max(1, int(request.args.get("page", 1)))
     except ValueError:
@@ -783,6 +842,8 @@ def index():
     used_names = get_unique(inspections, "nazwa")
     used_status = get_unique(inspections, "status")
     used_segments = get_unique(inspections, "segment")
+    property_cards = build_property_cards(inspections, request.args)
+    status_default_applied = "status" not in request.args
 
     total = len(filtered)
     total_pages = max(1, ceil(total / per_page)) if total else 1
@@ -793,6 +854,11 @@ def index():
     page_items = filtered[start:end]
 
     args_dict = request.args.to_dict()
+    args_no_page = args_dict.copy()
+    args_no_page.pop("page", None)
+    clear_property_url = url_for(
+        "index", **{k: v for k, v in args_no_page.items() if k != "nieruchomosc"}
+    )
 
     def build_page_url(num):
         params = args_dict.copy()
@@ -810,6 +876,9 @@ def index():
         used_status=used_status,
         used_uwagi=["tak", "nie"],
         used_segments=used_segments,
+        property_cards=property_cards,
+        status_default_applied=status_default_applied,
+        clear_property_url=clear_property_url,
         page=page,
         total_pages=total_pages,
         prev_url=prev_url,

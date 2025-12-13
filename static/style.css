@@ -143,6 +143,151 @@ table td:nth-child(11) {
   color: #475569;
 }
 
+.properties-section {
+  margin: 16px 0 18px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.properties-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.properties-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.properties-title {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.property-card {
+  display: block;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+  text-decoration: none;
+  color: #0f172a;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.property-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.property-card.is-active {
+  border-color: #2563eb;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.18);
+}
+
+.property-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.property-card-name {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.property-card-segment {
+  color: #475569;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.property-card-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.property-card-next {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.property-chip {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #312e81;
+  font-size: 12px;
+  border: 1px solid #c7d2fe;
+}
+
+.pill {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+.pill-overdue {
+  background: #ffe5e9;
+  color: #b00020;
+  border-color: #ffc5ce;
+}
+
+.pill-upcoming {
+  background: #fff3d1;
+  color: #a86b00;
+  border-color: #ffe3a0;
+}
+
+.pill-current {
+  background: #e3f6e8;
+  color: #1b8a2f;
+  border-color: #c5e8cf;
+}
+
+.property-card.empty-card {
+  border-style: dashed;
+  text-align: center;
+  color: #6b7280;
+  box-shadow: none;
+}
+
+.filter-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+  max-width: 240px;
+}
+
+
 .form {
   margin-top: 18px;
 }

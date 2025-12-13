@@ -44,6 +44,46 @@
         </div>
       </div>
 
+      <div class="properties-section">
+        <div class="properties-head">
+          <div>
+            <div class="eyebrow">Twoje nieruchomości</div>
+            <div class="properties-title">Kliknij kafelek, aby otworzyć przeglądy dla wybranego obiektu.</div>
+          </div>
+          <div class="properties-actions">
+            {% if request.args.get('nieruchomosc') %}
+            <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="property-grid">
+          {% for card in property_cards %}
+          <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
+            <div class="property-card-header">
+              <div class="property-card-name">{{ card.name }}</div>
+              {% if card.property_id %}
+              <span class="property-chip">ID {{ card.property_id }}</span>
+              {% endif %}
+            </div>
+            {% if card.segment %}
+            <div class="property-card-segment">{{ card.segment }}</div>
+            {% endif %}
+            <div class="property-card-counts">
+              <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
+              <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
+              <span class="pill pill-current">{{ card.current }} aktualne</span>
+            </div>
+            {% if card.next_due_label %}
+            <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
+            {% endif %}
+          </a>
+          {% endfor %}
+          {% if not property_cards %}
+          <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
+          {% endif %}
+        </div>
+      </div>
+
       <form method="GET" class="filters">
         <div>
           <label>Szukaj</label>
@@ -98,6 +138,9 @@
             </option>
             {% endfor %}
           </select>
+          {% if status_default_applied %}
+          <div class="filter-hint">Domyślnie widzisz tylko Nadchodzące i Zaległe.</div>
+          {% endif %}
         </div>
 
         <div>
@@ -136,10 +179,6 @@
             <option value="nazwa" {% if request.args.get('sort') == 'nazwa' %}selected{% endif %}>Nazwa</option>
             <option value="kolejna_data" {% if request.args.get('sort') == 'kolejna_data' %}selected{% endif %}>Kolejna data</option>
           </select>
-        </div>
-
-        <div>
-          <button type="submit" class="btn">Filtruj</button>
         </div>
       </form>
 
