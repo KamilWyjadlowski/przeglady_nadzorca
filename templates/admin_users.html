@@ -37,7 +37,6 @@
         <thead>
           <tr>
             <th>Użytkownik</th>
-            <th>E-mail</th>
             <th>Rola</th>
             <th>Akcja</th>
           </tr>
@@ -46,14 +45,12 @@
           {% for u in users %}
           <tr>
             <td>{{ u.username }}</td>
-            <td>{{ u.email or "—" }}</td>
             <td>{{ u.role }}</td>
             <td>
               <form method="POST" class="admin-user-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="username" value="{{ u.username }}" />
                 <input type="password" name="new_pin" minlength="4" pattern="\\d*" placeholder="nowy PIN" />
-                <input type="email" name="email" placeholder="nowy e-mail" />
                 <button type="submit" class="btn btn-primary">Zresetuj PIN</button>
               </form>
             </td>

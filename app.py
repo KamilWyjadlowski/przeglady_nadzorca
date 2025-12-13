@@ -115,7 +115,9 @@ class InspectionOccurrence(Base):
     inspection_id = Column(Integer, ForeignKey("inspections.id"), nullable=False)
     due_date = Column(Date, nullable=False)
     done_date = Column(Date)
-    status = Column(String(32), nullable=False, default="planned")  # planned/done/overdue
+    status = Column(
+        String(32), nullable=False, default="planned"
+    )  # planned/done/overdue
     note = Column(Text)
     performed_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
@@ -278,7 +280,7 @@ def get_or_create_property_id(db, prop_name: str) -> str:
         if m:
             max_num = max(max_num, int(m.group(1)))
     max_num += 1
-    # zaktualizuj property_id w tabeli properties
+
     ensure_property_record(db, prop_name, property_id=f"P{max_num:04d}")
     return f"P{max_num:04d}"
 
@@ -300,7 +302,9 @@ def ensure_property_record(db, name: str, property_id: str = "", segment: str = 
     prop = db.query(Property).filter_by(name=name_norm).first()
     updated = False
     if not prop:
-        prop = Property(name=name_norm, property_id=property_id or None, segment=segment or None)
+        prop = Property(
+            name=name_norm, property_id=property_id or None, segment=segment or None
+        )
         db.add(prop)
         updated = True
     else:
@@ -392,12 +396,14 @@ def send_upcoming_notification(db, ins: Inspection, previous_status: str | None)
     line_tmpl = get_setting_value(
         db,
         "email_upcoming_line",
-        default="{name} — {property} (termin: {due})",
+        default="{name} — {property} (termin: {due}) [firma: {company}, email: {company_email}]",
     )
     line = line_tmpl.format(
         name=ins.nazwa,
         property=ins.nieruchomosc,
         due=ins.kolejna_data.strftime("%Y-%m-%d") if ins.kolejna_data else "-",
+        company=ins.firma or "",
+        company_email=ins.email or "",
     )
     enqueue_email(recipients, line)
 
@@ -437,7 +443,9 @@ def setup_db():
         session["csrf_token"] = token
     g.csrf_token = token
     if request.method == "POST":
-        form_token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
+        form_token = request.form.get("csrf_token") or request.headers.get(
+            "X-CSRF-Token", ""
+        )
         if form_token != g.csrf_token:
             return "Błędny token CSRF.", 400
 
@@ -865,18 +873,18 @@ def add():
         else:
             form = {
                 "nazwa": "",
-            "nieruchomosc": "",
-            "ostatnia_data": "",
-            "czestotliwosc_miesiace": "",
-            "opis": "",
-            "firma": "",
-            "telefon": "",
-            "email": "",
-            "segment": "",
-            "shared_with": [],
-            "owner": g.user["username"],
-            "property_shared_with": [],
-        }
+                "nieruchomosc": "",
+                "ostatnia_data": "",
+                "czestotliwosc_miesiace": "",
+                "opis": "",
+                "firma": "",
+                "telefon": "",
+                "email": "",
+                "segment": "",
+                "shared_with": [],
+                "owner": g.user["username"],
+                "property_shared_with": [],
+            }
 
     errors = validate_form(form) if request.method == "POST" else {}
 
@@ -1134,7 +1142,11 @@ def complete_occurrence(occ_id: int):
         return "Brak przeglądu.", 404
 
     prop_access = get_property_access_map(db)
-    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    ins_dict = {
+        "nazwa": ins.nazwa,
+        "nieruchomosc": ins.nieruchomosc,
+        "owner": ins.owner,
+    }
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu.", 403
 
@@ -1155,7 +1167,11 @@ def complete_occurrence(occ_id: int):
     log_event(
         "complete_occurrence",
         g.user.get("username"),
-        {"inspection": ins.nazwa, "property": ins.nieruchomosc, "done_date": done_dt.isoformat()},
+        {
+            "inspection": ins.nazwa,
+            "property": ins.nieruchomosc,
+            "done_date": done_dt.isoformat(),
+        },
         db_session=db,
     )
     return redirect(url_for("history", inspection_id=ins.id))
@@ -1173,7 +1189,11 @@ def update_occurrence(occ_id: int):
         return "Brak przeglądu.", 404
 
     prop_access = get_property_access_map(db)
-    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    ins_dict = {
+        "nazwa": ins.nazwa,
+        "nieruchomosc": ins.nieruchomosc,
+        "owner": ins.owner,
+    }
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu.", 403
 
@@ -1228,7 +1248,11 @@ def delete_occurrence(occ_id: int):
         return "Brak przeglądu.", 404
 
     prop_access = get_property_access_map(db)
-    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    ins_dict = {
+        "nazwa": ins.nazwa,
+        "nieruchomosc": ins.nieruchomosc,
+        "owner": ins.owner,
+    }
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu.", 403
 
@@ -1237,7 +1261,11 @@ def delete_occurrence(occ_id: int):
     log_event(
         "delete_occurrence",
         g.user.get("username"),
-        {"inspection": ins.nazwa, "property": ins.nieruchomosc, "occurrence_id": occ_id},
+        {
+            "inspection": ins.nazwa,
+            "property": ins.nieruchomosc,
+            "occurrence_id": occ_id,
+        },
         db_session=db,
     )
     return redirect(url_for("history", inspection_id=ins.id))
@@ -1251,7 +1279,11 @@ def history(inspection_id: int):
     if not ins:
         return "Nie znaleziono przeglądu.", 404
     prop_access = get_property_access_map(db)
-    ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+    ins_dict = {
+        "nazwa": ins.nazwa,
+        "nieruchomosc": ins.nieruchomosc,
+        "owner": ins.owner,
+    }
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu.", 403
 
@@ -1291,7 +1323,11 @@ def calendar_view():
             for ins in inspections
             if user_can_access(
                 g.user,
-                {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner},
+                {
+                    "nazwa": ins.nazwa,
+                    "nieruchomosc": ins.nieruchomosc,
+                    "owner": ins.owner,
+                },
                 prop_access,
             )
         }
@@ -1359,7 +1395,11 @@ def calendar_view():
 
     events = []
     for occ, ins in occurrences_all:
-        ins_dict = {"nazwa": ins.nazwa, "nieruchomosc": ins.nieruchomosc, "owner": ins.owner}
+        ins_dict = {
+            "nazwa": ins.nazwa,
+            "nieruchomosc": ins.nieruchomosc,
+            "owner": ins.owner,
+        }
         if not user_can_access(g.user, ins_dict, prop_access):
             continue
         if occ.status == "planned" and occ.due_date:
@@ -1449,7 +1489,9 @@ def admin_properties():
                 "slug": slugify_property(prop),
                 "owner": owners_map.get(prop, ""),
                 "shared_with": prop_access.get(prop, []),
-                "segment": (db.query(Property.segment).filter_by(name=prop).scalar() or ""),
+                "segment": (
+                    db.query(Property.segment).filter_by(name=prop).scalar() or ""
+                ),
                 "count": sum(1 for ins in inspections if ins.nieruchomosc == prop),
             }
         )
@@ -1531,7 +1573,9 @@ def admin_users():
                     if not new_pin.isdigit() or len(new_pin) < 4:
                         error = "PIN musi składać się z co najmniej 4 cyfr."
                     else:
-                        user.password = generate_password_hash(new_pin, method="pbkdf2:sha256")
+                        user.password = generate_password_hash(
+                            new_pin, method="pbkdf2:sha256"
+                        )
                         log_event(
                             "reset_pin",
                             g.user["username"],
@@ -1539,19 +1583,6 @@ def admin_users():
                             db_session=db,
                         )
                         message = f"Zmieniono PIN użytkownika {username}."
-                if new_email:
-                    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", new_email):
-                        error = "Podaj poprawny adres e-mail."
-                    else:
-                        user.email = new_email
-                        log_event(
-                            "update_email",
-                            g.user["username"],
-                            {"target": username},
-                            db_session=db,
-                        )
-                        if not message:
-                            message = f"Zaktualizowano e-mail użytkownika {username}."
                 db.commit()
 
     return render_template(
@@ -1574,9 +1605,7 @@ def admin_notifications():
         "email_upcoming_header": "Poniższe przeglądy zmieniły status na Nadchodzące:",
         "email_upcoming_line": "{name} — {property} (termin: {due})",
     }
-    form = {
-        k: get_setting_value(db, k, v) for k, v in defaults.items()
-    }
+    form = {k: get_setting_value(db, k, v) for k, v in defaults.items()}
     message = ""
     error = ""
 
