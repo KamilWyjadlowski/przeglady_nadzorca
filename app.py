@@ -97,10 +97,6 @@ class InspectionOccurrence(Base):
     inspection = relationship("Inspection", backref="occurrences")
 
 
-# Tworzymy tabele, jeśli nie istnieją
-Base.metadata.create_all(bind=engine)
-
-
 def parse_date(s: str) -> date:
     """
     Akceptuje format:
