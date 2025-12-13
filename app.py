@@ -305,24 +305,38 @@ def get_recipients_for_inspection(db, ins: Inspection) -> list[str]:
     return sorted({r.strip() for r in recipients if r.strip()})
 
 
-def send_email(to_list: list[str], subject: str, body: str):
+def enqueue_email(to_list: list[str], line: str):
     if not to_list or not SMTP_PASSWORD:
         return
-    msg = EmailMessage()
-    msg["From"] = SMTP_FROM
-    msg["To"] = ", ".join(to_list)
-    msg["Subject"] = subject
-    msg.set_content(body)
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
-            if SMTP_TLS:
-                server.starttls()
-            if SMTP_USER:
-                server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-    except Exception:
-        # w logach można dodać logger.exception, ale nie blokujemy żądania
-        pass
+    if not hasattr(g, "mail_batch"):
+        g.mail_batch = {}
+    for recipient in to_list:
+        g.mail_batch.setdefault(recipient, []).append(line)
+
+
+def flush_mail_queue():
+    batch = getattr(g, "mail_batch", None)
+    if not batch:
+        return
+    subject = "Nadchodzące przeglądy"
+    for recipient, lines in batch.items():
+        msg = EmailMessage()
+        msg["From"] = SMTP_FROM
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        body = "Poniższe przeglądy zmieniły status na Nadchodzące:\n\n" + "\n".join(
+            f"- {l}" for l in lines
+        )
+        msg.set_content(body)
+        try:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+                if SMTP_TLS:
+                    server.starttls()
+                if SMTP_USER:
+                    server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(msg)
+        except Exception:
+            pass
 
 
 def send_upcoming_notification(db, ins: Inspection, previous_status: str | None):
@@ -333,13 +347,8 @@ def send_upcoming_notification(db, ins: Inspection, previous_status: str | None)
     recipients = get_recipients_for_inspection(db, ins)
     if not recipients:
         return
-    subj = f"Nadchodzący przegląd: {ins.nazwa} — {ins.nieruchomosc}"
-    body = (
-        f"Przegląd: {ins.nazwa}\n"
-        f"Nieruchomość: {ins.nieruchomosc}\n"
-        f"Termin: {ins.kolejna_data.strftime('%Y-%m-%d') if ins.kolejna_data else '-'}\n"
-    )
-    send_email(recipients, subj, body)
+    line = f"{ins.nazwa} — {ins.nieruchomosc} (termin: {ins.kolejna_data.strftime('%Y-%m-%d') if ins.kolejna_data else '-'})"
+    enqueue_email(recipients, line)
 
 
 def find_user(username: str, db=None) -> Optional[Dict]:
@@ -387,6 +396,11 @@ def teardown_db(exc):
     db = getattr(g, "db", None)
     if db:
         db.close()
+    # wyślij ewentualne batche maili po zakończeniu żądania
+    try:
+        flush_mail_queue()
+    except Exception:
+        pass
 
 
 @app.context_processor
