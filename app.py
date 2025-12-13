@@ -479,6 +479,7 @@ def index():
     prop_segments = get_property_segment_map(db)
     inspections = []
     for ins in db.query(Inspection).all():
+        seg_val = prop_segments.get(ins.nieruchomosc) or ins.segment or ""
         ins_dict = {
             "id": ins.id,
             "nazwa": ins.nazwa,
