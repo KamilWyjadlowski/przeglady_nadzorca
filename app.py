@@ -164,6 +164,54 @@ def normalize_property_name(raw: str) -> str:
     return " ".join(p.capitalize() for p in raw.strip().split())
 
 
+@app.template_filter("format_property")
+def format_property(raw: str) -> str:
+    if raw is None:
+        return ""
+    s = " ".join(str(raw).strip().split())
+    if not s:
+        return ""
+
+    city = ""
+    rest = ""
+    if "," in s:
+        city, rest = [p.strip() for p in s.split(",", 1)]
+    else:
+        rest = s
+
+    if not city:
+        match = re.search(r"\bul\.?\b", s, flags=re.IGNORECASE)
+        if match:
+            city = s[: match.start()].strip().rstrip(",")
+            rest = s[match.end() :].strip()
+        else:
+            tokens = s.split()
+            if len(tokens) == 1:
+                return tokens[0]
+            city = tokens[0]
+            rest = " ".join(tokens[1:])
+
+    rest = re.sub(r"^ul\.?\s+", "", rest, flags=re.IGNORECASE).strip()
+    if not rest:
+        return city or s
+
+    tokens = rest.split()
+    number = ""
+    street = rest
+    last = tokens[-1]
+    if re.match(r"^\d+[A-Za-z]?(?:/\d+[A-Za-z]?)?$", last):
+        number = last
+        street = " ".join(tokens[:-1]).strip()
+
+    if not city:
+        return s
+    if not street:
+        return city
+    if number:
+        return f"{city}, ul. {street} {number}"
+    return f"{city}, ul. {street}"
+
+
 def add_months(d: date, months: int) -> date:
     year = d.year + (d.month - 1 + months) // 12
     month = (d.month - 1 + months) % 12 + 1

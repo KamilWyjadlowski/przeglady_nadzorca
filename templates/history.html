@@ -10,7 +10,7 @@
       <div class="topbar">
         <div class="brand">
           <strong>Historia przeglądu</strong>
-          <span class="tag">{{ inspection.nazwa }} — {{ inspection.nieruchomosc }}</span>
+          <span class="tag">{{ inspection.nazwa }} — {{ inspection.nieruchomosc | format_property }}</span>
         </div>
         <div class="user-panel">
           <a href="{{ url_for('index') }}" class="btn">← Lista</a>
@@ -28,7 +28,7 @@
       <h2>Historia wystąpień</h2>
       <p>
         Szablon: <strong>{{ inspection.nazwa }}</strong>,
-        nieruchomość: <strong>{{ inspection.nieruchomosc }}</strong>
+        nieruchomość: <strong>{{ inspection.nieruchomosc | format_property }}</strong>
         (co {{ inspection.czestotliwosc_miesiace }} mies.)
       </p>
 

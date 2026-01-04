@@ -42,7 +42,7 @@
           <tbody>
             {% for prop in properties %}
             <tr>
-              <td>{{ prop.name }}</td>
+              <td>{{ prop.name | format_property }}</td>
               <td>{{ prop.count }}</td>
               <td>
                 <select name="segment__{{ prop.slug }}">

@@ -27,7 +27,7 @@
         <div class="card-grid">
           {% for card in cards %}
           <a class="card" href="{{ url_for('calendar_view', property=card.name) }}">
-            <div class="card-title">{{ card.name }}</div>
+            <div class="card-title">{{ card.name | format_property }}</div>
             <div class="card-meta">{{ card.occ_count }} wystąpień</div>
           </a>
           {% endfor %}
@@ -36,7 +36,7 @@
           {% endif %}
         </div>
       {% else %}
-        <h2>Kalendarz dla: {{ property_name }} ({{ year }})</h2>
+        <h2>Kalendarz dla: {{ property_name | format_property }} ({{ year }})</h2>
         <a href="{{ url_for('calendar_view') }}" class="btn">← Wybierz inną nieruchomość</a>
         <form method="GET" class="year-picker">
           <input type="hidden" name="property" value="{{ property_name }}">
@@ -73,7 +73,7 @@
                 <a
                   href="{{ url_for('history', inspection_id=row.id) }}"
                   class="timeline-link"
-                  title="{{ row.name }} — {{ row.property }}"
+                  title="{{ row.name }} — {{ row.property | format_property }}"
                 >
                   <span class="ellipsis">{{ row.name }}</span>
                 </a>

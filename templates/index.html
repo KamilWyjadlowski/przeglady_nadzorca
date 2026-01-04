@@ -61,7 +61,7 @@
             {% for card in property_cards %}
             <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
               <div class="property-card-header">
-                <div class="property-card-name">{{ card.name }}</div>
+                <div class="property-card-name">{{ card.name | format_property }}</div>
                 {% if card.property_id %}
                 <span class="property-chip">ID {{ card.property_id }}</span>
                 {% endif %}
@@ -174,7 +174,7 @@
                         value="{{ p }}"
                         {% if p in selected_properties %}checked{% endif %}
                       />
-                      <span>{{ p }}</span>
+                      <span>{{ p | format_property }}</span>
                     </label>
                     {% endfor %}
                     {% if not used_properties %}
@@ -313,7 +313,7 @@
 
           <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ ins.nieruchomosc }}</td>
+            <td>{{ ins.nieruchomosc | format_property }}</td>
             <td>{{ ins.nazwa }}</td>
 
 
