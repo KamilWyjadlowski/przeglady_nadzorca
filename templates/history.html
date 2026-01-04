@@ -64,34 +64,15 @@
             <td>{{ occ.performed_by or "—" }}</td>
             <td>{{ occ.note or "—" }}</td>
             <td>
-              {% if occ.status != "done" %}
-              <form method="POST" action="{{ url_for('complete_occurrence', occ_id=occ.id) }}" style="display:inline">
+              {% if occ.status == "planned" %}
+              <form method="POST" action="{{ url_for('complete_occurrence', occ_id=occ.id) }}" class="history-actions">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="date" name="done_date" value="{{ today.isoformat() }}">
+                <input type="date" name="done_date" value="{{ today.isoformat() }}" aria-label="Data wykonania">
                 <button type="submit" class="btn btn-small">Oznacz jako wykonane</button>
               </form>
+              {% else %}
+              —
               {% endif %}
-
-              <form method="POST" action="{{ url_for('update_occurrence', occ_id=occ.id) }}" class="inline-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <div class="inline-fields">
-                  <input type="date" name="due_date" value="{{ occ.due_date.isoformat() if occ.due_date else '' }}" title="Termin">
-                  <input type="date" name="done_date" value="{{ occ.done_date.isoformat() if occ.done_date else '' }}" title="Wykonano">
-                  <select name="status" title="Status">
-                    <option value="planned" {% if occ.status == "planned" %}selected{% endif %}>Zaplanowany</option>
-                    <option value="done" {% if occ.status == "done" %}selected{% endif %}>Wykonany</option>
-                    <option value="overdue" {% if occ.status == "overdue" %}selected{% endif %}>Zaległy</option>
-                  </select>
-                  <input type="text" name="performed_by" value="{{ occ.performed_by or '' }}" placeholder="Kto" title="Kto">
-                  <input type="text" name="note" value="{{ occ.note or '' }}" placeholder="Notatka" title="Notatka">
-                  <button type="submit" class="btn btn-small">Zapisz</button>
-                </div>
-              </form>
-
-              <form method="POST" action="{{ url_for('delete_occurrence', occ_id=occ.id) }}" style="display:inline" onsubmit="return confirm('Usunąć to wystąpienie?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="submit" class="btn btn-small action-delete">Usuń</button>
-              </form>
             </td>
           </tr>
           {% endfor %}
