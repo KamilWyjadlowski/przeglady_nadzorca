@@ -40,6 +40,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 app = Flask(__name__)
 secret_from_env = os.getenv("SECRET_KEY")
 app.config["SECRET_KEY"] = secret_from_env or secrets.token_hex(32)
+APP_VERSION = "Alpha 1.1"
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
@@ -544,7 +545,11 @@ def teardown_db(exc):
 
 @app.context_processor
 def inject_user():
-    return {"current_user": g.get("user"), "csrf_token": g.get("csrf_token")}
+    return {
+        "current_user": g.get("user"),
+        "csrf_token": g.get("csrf_token"),
+        "app_version": APP_VERSION,
+    }
 
 
 def log_event(action: str, user: str, details: Dict, db_session=None):

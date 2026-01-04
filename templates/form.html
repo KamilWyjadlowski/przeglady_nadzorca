@@ -17,12 +17,12 @@
       <div class="topbar">
         <div class="brand">
           <strong>Nadzorca przeglądów</strong>
-          <span class="tag">Alpha 1.0</span>
+          <span class="tag">{{ app_version }}</span>
         </div>
         <div class="user-panel">
-          <div class="user-name">
+          <a class="user-name user-link" href="{{ url_for('profile') }}">
             Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
-          </div>
+          </a>
           <a href="{{ url_for('profile') }}" class="btn">Profil</a>
           {% if current_user and current_user.role == "admin" %}
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>

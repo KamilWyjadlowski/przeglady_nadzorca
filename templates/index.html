@@ -12,12 +12,12 @@
       <div class="topbar">
         <div class="brand">
           <strong>Nadzorca przeglądów</strong>
-          <span class="tag">Alpha 1.0</span>
+          <span class="tag">{{ app_version }}</span>
         </div>
         <div class="user-panel">
-          <div class="user-name">
+          <a class="user-name user-link" href="{{ url_for('profile') }}">
             Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
-          </div>
+          </a>
           <a href="{{ url_for('profile') }}" class="btn">Profil</a>
           <a href="{{ url_for('calendar_view') }}" class="btn">Kalendarz</a>
           {% if current_user and current_user.role == "admin" %}
@@ -36,7 +36,6 @@
         <div class="header-row">
           <h2>Lista przeglądów</h2>
           <div class="header-actions">
-            <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
             <a
               href="{{ url_for('export_csv', **(args_dict or {})) }}"
               class="btn btn-ghost"
@@ -47,10 +46,10 @@
 
         <div class="properties-section">
           <div class="properties-head">
-            <div>
-              <div class="eyebrow">Twoje nieruchomości</div>
-              <div class="properties-title">Kliknij kafelek, aby otworzyć przeglądy dla wybranego obiektu.</div>
-            </div>
+          <div class="properties-title-wrap">
+            <div class="eyebrow">Twoje nieruchomości</div>
+            <div class="properties-title">Wzorce przeglądów</div>
+          </div>
             <div class="properties-actions">
               {% if request.args.get('nieruchomosc') %}
               <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
@@ -62,9 +61,6 @@
             <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
               <div class="property-card-header">
                 <div class="property-card-name">{{ card.name | format_property }}</div>
-                {% if card.property_id %}
-                <span class="property-chip">ID {{ card.property_id }}</span>
-                {% endif %}
               </div>
               {% if card.segment %}
               <div class="property-card-segment">{{ card.segment }}</div>
@@ -86,189 +82,194 @@
         </div>
 
         <div class="filters">
-          <div class="search-bar">
-            <label class="sr-only" for="filterSearch">Szukaj</label>
-            <input
-              type="text"
-              id="filterSearch"
-              name="q"
-              value="{{ request.args.get('q', '') }}"
-              placeholder="Szukaj"
-            />
-            <div class="filter-shell">
-              <button
-                type="button"
-                class="filter-trigger"
-                id="filterTrigger"
-                aria-expanded="false"
-                aria-controls="filterPanel"
-                aria-label="Filtry"
-                title="Filtry"
-              >
-                <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M3 5h18l-7 8v5l-4 1v-6L3 5z"
-                    fill="currentColor"
-                  />
-                </svg>
-                {% if active_filter_count %}
-                <span class="filter-badge">{{ active_filter_count }}</span>
-                {% endif %}
-              </button>
-              <div class="filter-panel" id="filterPanel" role="dialog" aria-label="Filtry">
-                {% set current_sort = request.args.get('sort', 'default') %}
-                <div class="filter-panel-header">
-                  <div class="filter-panel-title">Filtry</div>
-                </div>
-
-                <div class="filter-group">
-                  <div class="filter-group-title">Sortowanie</div>
-                  <div class="filter-options">
-                    <label class="filter-option">
-                      <input
-                        type="radio"
-                        name="sort"
-                        value="default"
-                        {% if current_sort == "default" %}checked{% endif %}
-                      />
-                      <span>Domyślne</span>
-                    </label>
-                    <label class="filter-option">
-                      <input
-                        type="radio"
-                        name="sort"
-                        value="nieruchomosc"
-                        {% if current_sort == "nieruchomosc" %}checked{% endif %}
-                      />
-                      <span>Nieruchomość</span>
-                    </label>
-                    <label class="filter-option">
-                      <input
-                        type="radio"
-                        name="sort"
-                        value="nazwa"
-                        {% if current_sort == "nazwa" %}checked{% endif %}
-                      />
-                      <span>Nazwa</span>
-                    </label>
-                    <label class="filter-option">
-                      <input
-                        type="radio"
-                        name="sort"
-                        value="kolejna_data"
-                        {% if current_sort == "kolejna_data" %}checked{% endif %}
-                      />
-                      <span>Kolejna data</span>
-                    </label>
+          <div class="toolbar">
+            <div class="search-bar">
+              <label class="sr-only" for="filterSearch">Szukaj</label>
+              <input
+                type="text"
+                id="filterSearch"
+                name="q"
+                value="{{ request.args.get('q', '') }}"
+                placeholder="Szukaj"
+              />
+            </div>
+            <div class="toolbar-actions">
+              <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
+              <div class="filter-shell">
+                <button
+                  type="button"
+                  class="filter-trigger"
+                  id="filterTrigger"
+                  aria-expanded="false"
+                  aria-controls="filterPanel"
+                  aria-label="Filtry"
+                  title="Filtry"
+                >
+                  <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M3 5h18l-7 8v5l-4 1v-6L3 5z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  {% if active_filter_count %}
+                  <span class="filter-badge">{{ active_filter_count }}</span>
+                  {% endif %}
+                </button>
+                <div class="filter-panel" id="filterPanel" role="dialog" aria-label="Filtry">
+                  {% set current_sort = request.args.get('sort', 'default') %}
+                  <div class="filter-panel-header">
+                    <div class="filter-panel-title">Filtry</div>
                   </div>
-                </div>
 
-                <div class="filter-group">
-                  <div class="filter-group-title">Nieruchomość</div>
-                  <div class="filter-options">
-                    {% for p in used_properties %}
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="nieruchomosc"
-                        value="{{ p }}"
-                        {% if p in selected_properties %}checked{% endif %}
-                      />
-                      <span>{{ p | format_property }}</span>
-                    </label>
-                    {% endfor %}
-                    {% if not used_properties %}
-                    <div class="filter-empty">Brak danych</div>
-                    {% endif %}
+                  <div class="filter-group">
+                    <div class="filter-group-title">Sortowanie</div>
+                    <div class="filter-options">
+                      <label class="filter-option">
+                        <input
+                          type="radio"
+                          name="sort"
+                          value="default"
+                          {% if current_sort == "default" %}checked{% endif %}
+                        />
+                        <span>Domyślne</span>
+                      </label>
+                      <label class="filter-option">
+                        <input
+                          type="radio"
+                          name="sort"
+                          value="nieruchomosc"
+                          {% if current_sort == "nieruchomosc" %}checked{% endif %}
+                        />
+                        <span>Nieruchomość</span>
+                      </label>
+                      <label class="filter-option">
+                        <input
+                          type="radio"
+                          name="sort"
+                          value="nazwa"
+                          {% if current_sort == "nazwa" %}checked{% endif %}
+                        />
+                        <span>Nazwa</span>
+                      </label>
+                      <label class="filter-option">
+                        <input
+                          type="radio"
+                          name="sort"
+                          value="kolejna_data"
+                          {% if current_sort == "kolejna_data" %}checked{% endif %}
+                        />
+                        <span>Kolejna data</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <div class="filter-group">
-                  <div class="filter-group-title">Status</div>
-                  <div class="filter-options">
-                    {% for s in used_status %}
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="status"
-                        value="{{ s }}"
-                        {% if s in selected_status %}checked{% endif %}
-                      />
-                      <span>{{ s }}</span>
-                    </label>
-                    {% endfor %}
-                    {% if not used_status %}
-                    <div class="filter-empty">Brak danych</div>
-                    {% endif %}
+                  <div class="filter-group">
+                    <div class="filter-group-title">Nieruchomość</div>
+                    <div class="filter-options">
+                      {% for p in used_properties %}
+                      <label class="filter-option">
+                        <input
+                          type="checkbox"
+                          name="nieruchomosc"
+                          value="{{ p }}"
+                          {% if p in selected_properties %}checked{% endif %}
+                        />
+                        <span>{{ p | format_property }}</span>
+                      </label>
+                      {% endfor %}
+                      {% if not used_properties %}
+                      <div class="filter-empty">Brak danych</div>
+                      {% endif %}
+                    </div>
                   </div>
-                </div>
 
-                <div class="filter-group">
-                  <div class="filter-group-title">Przegląd</div>
-                  <div class="filter-options">
-                    {% for n in used_names %}
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="nazwa"
-                        value="{{ n }}"
-                        {% if n in selected_names %}checked{% endif %}
-                      />
-                      <span>{{ n }}</span>
-                    </label>
-                    {% endfor %}
-                    {% if not used_names %}
-                    <div class="filter-empty">Brak danych</div>
-                    {% endif %}
+                  <div class="filter-group">
+                    <div class="filter-group-title">Status</div>
+                    <div class="filter-options">
+                      {% for s in used_status %}
+                      <label class="filter-option">
+                        <input
+                          type="checkbox"
+                          name="status"
+                          value="{{ s }}"
+                          {% if s in selected_status %}checked{% endif %}
+                        />
+                        <span>{{ s }}</span>
+                      </label>
+                      {% endfor %}
+                      {% if not used_status %}
+                      <div class="filter-empty">Brak danych</div>
+                      {% endif %}
+                    </div>
                   </div>
-                </div>
 
-                <div class="filter-group">
-                  <div class="filter-group-title">Uwagi</div>
-                  <div class="filter-options">
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="uwagi"
-                        value="tak"
-                        {% if "tak" in selected_uwagi %}checked{% endif %}
-                      />
-                      <span>Ma uwagi</span>
-                    </label>
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="uwagi"
-                        value="nie"
-                        {% if "nie" in selected_uwagi %}checked{% endif %}
-                      />
-                      <span>Bez uwag</span>
-                    </label>
+                  <div class="filter-group">
+                    <div class="filter-group-title">Przegląd</div>
+                    <div class="filter-options">
+                      {% for n in used_names %}
+                      <label class="filter-option">
+                        <input
+                          type="checkbox"
+                          name="nazwa"
+                          value="{{ n }}"
+                          {% if n in selected_names %}checked{% endif %}
+                        />
+                        <span>{{ n }}</span>
+                      </label>
+                      {% endfor %}
+                      {% if not used_names %}
+                      <div class="filter-empty">Brak danych</div>
+                      {% endif %}
+                    </div>
                   </div>
-                </div>
 
-                <div class="filter-group">
-                  <div class="filter-group-title">Segment</div>
-                  <div class="filter-options">
-                    {% for seg in used_segments %}
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="segment"
-                        value="{{ seg }}"
-                        {% if seg in selected_segments %}checked{% endif %}
-                      />
-                      <span>{{ seg }}</span>
-                    </label>
-                    {% endfor %}
-                    {% if not used_segments %}
-                    <div class="filter-empty">Brak danych</div>
-                    {% endif %}
+                  <div class="filter-group">
+                    <div class="filter-group-title">Uwagi</div>
+                    <div class="filter-options">
+                      <label class="filter-option">
+                        <input
+                          type="checkbox"
+                          name="uwagi"
+                          value="tak"
+                          {% if "tak" in selected_uwagi %}checked{% endif %}
+                        />
+                        <span>Ma uwagi</span>
+                      </label>
+                      <label class="filter-option">
+                        <input
+                          type="checkbox"
+                          name="uwagi"
+                          value="nie"
+                          {% if "nie" in selected_uwagi %}checked{% endif %}
+                        />
+                        <span>Bez uwag</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <div class="filter-panel-actions">
-                  <a href="{{ clear_filters_url }}" class="btn btn-ghost">Wyczyść wszystko</a>
+                  <div class="filter-group">
+                    <div class="filter-group-title">Segment</div>
+                    <div class="filter-options">
+                      {% for seg in used_segments %}
+                      <label class="filter-option">
+                        <input
+                          type="checkbox"
+                          name="segment"
+                          value="{{ seg }}"
+                          {% if seg in selected_segments %}checked{% endif %}
+                        />
+                        <span>{{ seg }}</span>
+                      </label>
+                      {% endfor %}
+                      {% if not used_segments %}
+                      <div class="filter-empty">Brak danych</div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="filter-panel-actions">
+                    <a href="{{ clear_filters_url }}" class="btn btn-ghost">Wyczyść wszystko</a>
+                  </div>
                 </div>
               </div>
             </div>
