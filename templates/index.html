@@ -186,26 +186,6 @@
                 </div>
 
                 <div class="filter-group">
-                  <div class="filter-group-title">Przegląd</div>
-                  <div class="filter-options">
-                    {% for n in used_names %}
-                    <label class="filter-option">
-                      <input
-                        type="checkbox"
-                        name="nazwa"
-                        value="{{ n }}"
-                        {% if n in selected_names %}checked{% endif %}
-                      />
-                      <span>{{ n }}</span>
-                    </label>
-                    {% endfor %}
-                    {% if not used_names %}
-                    <div class="filter-empty">Brak danych</div>
-                    {% endif %}
-                  </div>
-                </div>
-
-                <div class="filter-group">
                   <div class="filter-group-title">Status</div>
                   <div class="filter-options">
                     {% for s in used_status %}
@@ -220,6 +200,26 @@
                     </label>
                     {% endfor %}
                     {% if not used_status %}
+                    <div class="filter-empty">Brak danych</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <div class="filter-group-title">Przegląd</div>
+                  <div class="filter-options">
+                    {% for n in used_names %}
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="nazwa"
+                        value="{{ n }}"
+                        {% if n in selected_names %}checked{% endif %}
+                      />
+                      <span>{{ n }}</span>
+                    </label>
+                    {% endfor %}
+                    {% if not used_names %}
                     <div class="filter-empty">Brak danych</div>
                     {% endif %}
                   </div>
