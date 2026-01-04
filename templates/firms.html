@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Firmy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-title">Nadzorca przeglądów <span class="brand-version">{{ app_version }}</span></div>
+        </div>
+        <div class="user-panel">
+          <a class="user-name user-link" href="{{ url_for('profile') }}">
+            Zalogowany jako: <strong>{{ current_user.username if current_user else "-" }}</strong>
+          </a>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="app-nav">
+        <a class="app-nav-link" href="{{ url_for('index') }}">Przeglądy</a>
+        <a class="app-nav-link is-active" href="{{ url_for('firm_index') }}">Firmy</a>
+      </div>
+
+      <div class="page-header">
+        <h2>Firmy</h2>
+      </div>
+
+      <form method="GET" class="firm-toolbar">
+        <div class="firm-search">
+          <input
+            type="text"
+            name="q"
+            value="{{ q }}"
+            placeholder="Szukaj firmy, telefonu, maila, nieruchomości, zakresu"
+          />
+        </div>
+        <div class="firm-filter">
+          <select name="property" onchange="this.form.submit()">
+            <option value="">Nieruchomość (wszystkie)</option>
+            {% for p in used_properties %}
+            <option value="{{ p }}" {% if p == selected_property %}selected{% endif %}>{{ p | format_property }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="firm-filter">
+          <select name="scope" onchange="this.form.submit()">
+            <option value="">Zakres (wszystkie)</option>
+            {% for s in used_scopes %}
+            <option value="{{ s }}" {% if s == selected_scope %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Szukaj</button>
+        {% if q or selected_property or selected_scope %}
+        <a href="{{ url_for('firm_index') }}" class="btn btn-ghost">Wyczyść</a>
+        {% endif %}
+      </form>
+
+      <div class="firm-list">
+        {% for firm in firms %}
+        <div class="firm-row">
+          <div class="firm-main">
+            <a class="firm-name-link" href="{{ url_for('firm_detail', company=firm.name) }}">{{ firm.name }}</a>
+            <div class="firm-contacts">
+              {% for email in firm.email_preview %}
+              <a class="firm-contact-link" href="mailto:{{ email }}">{{ email }}</a>
+              {% endfor %}
+              {% for phone in firm.phone_preview %}
+              <span class="firm-contact-text">{{ phone }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="firm-meta">
+            <div>{{ firm.contact_count }} kontaktów</div>
+            <div>{{ firm.property_count }} nieruchomości</div>
+            <div class="firm-scope">{{ firm.scope_summary or "-" }}</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% if not firms %}
+        <div class="empty-state">Brak firm do wyświetlenia.</div>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>

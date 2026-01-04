@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ firm.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-title">Nadzorca przeglądów <span class="brand-version">{{ app_version }}</span></div>
+        </div>
+        <div class="user-panel">
+          <a class="user-name user-link" href="{{ url_for('profile') }}">
+            Zalogowany jako: <strong>{{ current_user.username if current_user else "-" }}</strong>
+          </a>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-ghost">Wyloguj</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="app-nav">
+        <a class="app-nav-link" href="{{ url_for('index') }}">Przeglądy</a>
+        <a class="app-nav-link is-active" href="{{ url_for('firm_index') }}">Firmy</a>
+      </div>
+
+      <div class="firm-detail-header">
+        <div>
+          <h2>{{ firm.name }}</h2>
+          <div class="firm-summary">
+            {{ firm.contact_count }} kontaktów - {{ firm.property_count }} nieruchomości
+          </div>
+        </div>
+        <a href="{{ url_for('firm_index') }}" class="btn btn-ghost">← Lista firm</a>
+      </div>
+
+      <div class="firm-contact-list">
+        {% for contact in firm.contacts %}
+        <div class="firm-contact-card">
+          <div class="firm-contact-title">Kontakt #{{ loop.index }}</div>
+          <div class="firm-contact-lines">
+            <div>
+              Telefon: <span class="firm-contact-text">{{ contact.phone or "-" }}</span>
+            </div>
+            <div>
+              Email:
+              {% if contact.email %}
+              <a class="firm-contact-link" href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+              {% else %}
+              <span class="firm-contact-text">-</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="firm-contact-properties">
+            {% for prop in contact.properties %}
+            <div class="firm-property">
+              <a class="firm-property-link" href="{{ url_for('index', nieruchomosc=prop.name) }}">
+                {{ prop.name | format_property }}
+              </a>
+              {% if prop.scopes %}
+              <div class="firm-tags">
+                {% for scope in prop.scopes %}
+                <span class="firm-tag">{{ scope }}</span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="firm-tags">
+                <span class="firm-tag">Brak zakresu</span>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        {% if not firm.contacts %}
+        <div class="empty-state">Brak kontaktów dla tej firmy.</div>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>

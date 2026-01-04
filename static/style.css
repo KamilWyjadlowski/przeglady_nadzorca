@@ -619,6 +619,37 @@ table td:nth-child(11) {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+}
+
+.app-nav-link:hover {
+  background: #e2e8f0;
+}
+
+.app-nav-link.is-active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
 .brand {
   display: flex;
   flex-direction: column;
@@ -690,6 +721,216 @@ table td:nth-child(11) {
 .btn-ghost {
   background: transparent;
   border: 1px solid #cbd5e1;
+}
+
+.firm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.page-header {
+  margin-bottom: 12px;
+}
+
+.firm-search {
+  flex: 1;
+  min-width: 240px;
+}
+
+.firm-search input {
+  width: 100%;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0 14px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.firm-filter select {
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.firm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.firm-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.firm-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.firm-name-link {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.firm-name-link:hover {
+  text-decoration: underline;
+  text-decoration-color: #cbd5e1;
+  text-underline-offset: 3px;
+}
+
+.firm-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.firm-contact-link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.firm-contact-link:hover {
+  text-decoration: underline;
+}
+
+.firm-contact-text {
+  color: #475569;
+}
+
+.firm-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: right;
+  font-size: 13px;
+  color: #475569;
+  min-width: 180px;
+}
+
+.firm-scope {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.firm-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.firm-summary {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.firm-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.firm-contact-card {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.firm-contact-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+.firm-contact-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.firm-contact-properties {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.firm-property {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.firm-property-link {
+  font-weight: 600;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.firm-property-link:hover {
+  text-decoration: underline;
+  text-decoration-color: #cbd5e1;
+  text-underline-offset: 3px;
+}
+
+.firm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.firm-tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.empty-state {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+@media (max-width: 720px) {
+  .firm-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .firm-meta {
+    text-align: left;
+  }
 }
 
 .field {

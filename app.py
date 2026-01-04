@@ -951,6 +951,63 @@ def index():
     )
 
 
+@app.route("/firms")
+@login_required
+def firm_index():
+    db = get_db()
+    inspections = load_inspections_for_user(db, g.user)
+    companies, _ = build_company_directory(inspections)
+
+    q = request.args.get("q", "").strip()
+    selected_property = request.args.get("property", "").strip()
+    selected_scope = request.args.get("scope", "").strip()
+    q_lower = q.lower()
+
+    def matches(company):
+        if selected_property and selected_property not in company["properties"]:
+            return False
+        if selected_scope and selected_scope not in company["scopes"]:
+            return False
+        if q_lower:
+            hay = " ".join(
+                [company["name"]]
+                + company["emails"]
+                + company["phones"]
+                + company["properties"]
+                + company["scopes"]
+            ).lower()
+            if q_lower not in hay:
+                return False
+        return True
+
+    filtered = [c for c in companies if matches(c)]
+    used_properties = get_unique(inspections, "nieruchomosc")
+    used_scopes = get_unique(inspections, "nazwa")
+
+    return render_template(
+        "firms.html",
+        firms=filtered,
+        q=q,
+        used_properties=used_properties,
+        used_scopes=used_scopes,
+        selected_property=selected_property,
+        selected_scope=selected_scope,
+    )
+
+
+@app.route("/firms/<path:company>")
+@login_required
+def firm_detail(company: str):
+    db = get_db()
+    inspections = load_inspections_for_user(db, g.user)
+    _, directory = build_company_directory(inspections)
+    key = normalize_company_key(company)
+    firm = directory.get(key)
+    if not firm:
+        return "Nie znaleziono firmy.", 404
+    return render_template("firm_detail.html", firm=firm)
+
+
 @app.route("/export")
 @app.route("/export.csv")
 @login_required
@@ -1163,6 +1220,89 @@ def build_company_contacts(inspections):
                 "email": ins.get("email", ""),
             }
     return result
+
+
+def normalize_company_key(name: str) -> str:
+    return " ".join((name or "").strip().split()).lower()
+
+
+def build_company_directory(inspections):
+    companies = {}
+    for ins in inspections:
+        company = " ".join((ins.get("firma") or "").strip().split())
+        if not company:
+            continue
+        key = normalize_company_key(company)
+        entry = companies.setdefault(key, {"name": company, "contacts": {}})
+        phone = " ".join((ins.get("telefon") or "").strip().split())
+        email = (ins.get("email") or "").strip()
+        contact_key = f"{phone.lower()}|{email.lower()}"
+        contact = entry["contacts"].setdefault(
+            contact_key,
+            {
+                "phone": phone,
+                "email": email,
+                "properties": {},
+            },
+        )
+        prop = " ".join((ins.get("nieruchomosc") or "").strip().split())
+        scope = " ".join((ins.get("nazwa") or "").strip().split())
+        if prop:
+            scopes = contact["properties"].setdefault(prop, set())
+            if scope:
+                scopes.add(scope)
+
+    directory = {}
+    for key, entry in companies.items():
+        contacts = []
+        properties = set()
+        scopes = set()
+        emails = set()
+        phones = set()
+        for contact in entry["contacts"].values():
+            if contact["email"]:
+                emails.add(contact["email"])
+            if contact["phone"]:
+                phones.add(contact["phone"])
+            prop_list = []
+            for prop, scope_set in contact["properties"].items():
+                prop_list.append(
+                    {
+                        "name": prop,
+                        "scopes": sorted(scope_set),
+                    }
+                )
+                properties.add(prop)
+                scopes.update(scope_set)
+            prop_list.sort(key=lambda p: p["name"].lower())
+            contacts.append(
+                {
+                    "phone": contact["phone"],
+                    "email": contact["email"],
+                    "properties": prop_list,
+                }
+            )
+        contacts.sort(key=lambda c: (c["email"] or "", c["phone"] or ""))
+        scope_list = sorted(scopes)
+        scope_summary = ", ".join(scope_list[:3])
+        if len(scope_list) > 3:
+            scope_summary = f"{scope_summary}..."
+        directory[key] = {
+            "key": key,
+            "name": entry["name"],
+            "contacts": contacts,
+            "contact_count": len(contacts),
+            "property_count": len(properties),
+            "properties": sorted(properties),
+            "scopes": scope_list,
+            "scope_summary": scope_summary,
+            "emails": sorted(emails),
+            "phones": sorted(phones),
+            "email_preview": sorted(emails)[:2],
+            "phone_preview": sorted(phones)[:2],
+        }
+    companies_list = sorted(directory.values(), key=lambda c: c["name"].lower())
+    return companies_list, directory
 
 
 @app.route("/add", methods=["GET", "POST"])
