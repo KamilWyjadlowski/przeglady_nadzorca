@@ -28,7 +28,14 @@
       {% if properties %}
       <form method="POST" id="adminPropForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <table>
+        <table class="admin-props-table">
+          <colgroup>
+            <col style="width: 32%">
+            <col style="width: 8%">
+            <col style="width: 14%">
+            <col style="width: 16%">
+            <col style="width: 30%">
+          </colgroup>
           <thead>
             <tr>
               <th>Nieruchomość</th>
@@ -41,8 +48,8 @@
           <tbody>
             {% for prop in properties %}
             <tr>
-              <td>{{ prop.name | format_property }}</td>
-              <td>{{ prop.count }}</td>
+              <td class="admin-prop-name">{{ prop.name | format_property }}</td>
+              <td class="admin-prop-count">{{ prop.count }}</td>
               <td>
                 <select name="segment__{{ prop.slug }}">
                   <option value="">(brak)</option>

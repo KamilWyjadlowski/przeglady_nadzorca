@@ -117,6 +117,43 @@ table td:nth-child(11) {
   width: 60px;
 }
 
+.admin-props-table {
+  table-layout: fixed;
+}
+
+.admin-props-table th,
+.admin-props-table td {
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-props-table th:nth-child(1),
+.admin-props-table td:nth-child(1) {
+  width: auto;
+}
+
+.admin-props-table th:nth-child(2),
+.admin-props-table td:nth-child(2) {
+  text-align: center;
+}
+
+.admin-prop-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-props-table select {
+  width: 100%;
+  min-width: 140px;
+}
+
+.admin-props-table .checkbox-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
 .status-zalegly {
   color: #b00020;
   font-weight: 600;
