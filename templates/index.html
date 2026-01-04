@@ -32,153 +32,215 @@
         </div>
       </div>
 
-      <div class="header-row">
-        <h2>Lista przeglądów</h2>
-        <div class="header-actions">
-          <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
-          <a
-            href="{{ url_for('export_csv', **(args_dict or {})) }}"
-            class="btn btn-ghost"
-            >⬇️ Eksport CSV</a
-          >
-        </div>
-      </div>
+      <form method="GET" class="filters-form" id="filtersForm">
+        <div class="header-row">
+          <h2>Lista przeglądów</h2>
+          <div class="header-actions">
+            <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
+            <a
+              href="{{ url_for('export_csv', **(args_dict or {})) }}"
+              class="btn btn-ghost"
+              >⬇️ Eksport CSV</a
+            >
+            <div class="filter-shell">
+              <button
+                type="button"
+                class="btn btn-ghost filter-trigger"
+                id="filterTrigger"
+                aria-expanded="false"
+                aria-controls="filterPanel"
+              >
+                <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M3 5h18l-7 8v5l-4 1v-6L3 5z"
+                    fill="currentColor"
+                  />
+                </svg>
+                Filtry
+                {% if active_filter_count %}
+                <span class="filter-badge">{{ active_filter_count }}</span>
+                {% endif %}
+              </button>
+              <div class="filter-panel" id="filterPanel" role="dialog" aria-label="Filtry">
+                <div class="filter-panel-header">
+                  <div class="filter-panel-title">Filtry</div>
+                  {% if status_default_applied %}
+                  <div class="filter-panel-hint">Domyślnie: Zaległe i Nadchodzące.</div>
+                  {% endif %}
+                </div>
 
-      <div class="properties-section">
-        <div class="properties-head">
-          <div>
-            <div class="eyebrow">Twoje nieruchomości</div>
-            <div class="properties-title">Kliknij kafelek, aby otworzyć przeglądy dla wybranego obiektu.</div>
-          </div>
-          <div class="properties-actions">
-            {% if request.args.get('nieruchomosc') %}
-            <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
-            {% endif %}
+                <div class="filter-group">
+                  <div class="filter-group-title">Nieruchomość</div>
+                  <div class="filter-options">
+                    {% for p in used_properties %}
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="nieruchomosc"
+                        value="{{ p }}"
+                        {% if p in selected_properties %}checked{% endif %}
+                      />
+                      <span>{{ p }}</span>
+                    </label>
+                    {% endfor %}
+                    {% if not used_properties %}
+                    <div class="filter-empty">Brak danych</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <div class="filter-group-title">Przegląd</div>
+                  <div class="filter-options">
+                    {% for n in used_names %}
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="nazwa"
+                        value="{{ n }}"
+                        {% if n in selected_names %}checked{% endif %}
+                      />
+                      <span>{{ n }}</span>
+                    </label>
+                    {% endfor %}
+                    {% if not used_names %}
+                    <div class="filter-empty">Brak danych</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <div class="filter-group-title">Status</div>
+                  <div class="filter-options">
+                    {% for s in used_status %}
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="status"
+                        value="{{ s }}"
+                        {% if s in status_selected %}checked{% endif %}
+                      />
+                      <span>{{ s }}</span>
+                    </label>
+                    {% endfor %}
+                    {% if not used_status %}
+                    <div class="filter-empty">Brak danych</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <div class="filter-group-title">Uwagi</div>
+                  <div class="filter-options">
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="uwagi"
+                        value="tak"
+                        {% if "tak" in selected_uwagi %}checked{% endif %}
+                      />
+                      <span>Ma uwagi</span>
+                    </label>
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="uwagi"
+                        value="nie"
+                        {% if "nie" in selected_uwagi %}checked{% endif %}
+                      />
+                      <span>Bez uwag</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <div class="filter-group-title">Segment</div>
+                  <div class="filter-options">
+                    {% for seg in used_segments %}
+                    <label class="filter-option">
+                      <input
+                        type="checkbox"
+                        name="segment"
+                        value="{{ seg }}"
+                        {% if seg in selected_segments %}checked{% endif %}
+                      />
+                      <span>{{ seg }}</span>
+                    </label>
+                    {% endfor %}
+                    {% if not used_segments %}
+                    <div class="filter-empty">Brak danych</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="filter-panel-actions">
+                  <a href="{{ clear_filters_url }}" class="btn btn-ghost">Wyczyść wszystko</a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="property-grid">
-          {% for card in property_cards %}
-          <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
-            <div class="property-card-header">
-              <div class="property-card-name">{{ card.name }}</div>
-              {% if card.property_id %}
-              <span class="property-chip">ID {{ card.property_id }}</span>
+
+        <div class="properties-section">
+          <div class="properties-head">
+            <div>
+              <div class="eyebrow">Twoje nieruchomości</div>
+              <div class="properties-title">Kliknij kafelek, aby otworzyć przeglądy dla wybranego obiektu.</div>
+            </div>
+            <div class="properties-actions">
+              {% if request.args.get('nieruchomosc') %}
+              <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
               {% endif %}
             </div>
-            {% if card.segment %}
-            <div class="property-card-segment">{{ card.segment }}</div>
+          </div>
+          <div class="property-grid">
+            {% for card in property_cards %}
+            <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
+              <div class="property-card-header">
+                <div class="property-card-name">{{ card.name }}</div>
+                {% if card.property_id %}
+                <span class="property-chip">ID {{ card.property_id }}</span>
+                {% endif %}
+              </div>
+              {% if card.segment %}
+              <div class="property-card-segment">{{ card.segment }}</div>
+              {% endif %}
+              <div class="property-card-counts">
+                <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
+                <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
+                <span class="pill pill-current">{{ card.current }} aktualne</span>
+              </div>
+              {% if card.next_due_label %}
+              <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
+              {% endif %}
+            </a>
+            {% endfor %}
+            {% if not property_cards %}
+            <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
             {% endif %}
-            <div class="property-card-counts">
-              <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
-              <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
-              <span class="pill pill-current">{{ card.current }} aktualne</span>
-            </div>
-            {% if card.next_due_label %}
-            <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
-            {% endif %}
-          </a>
-          {% endfor %}
-          {% if not property_cards %}
-          <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
-          {% endif %}
-        </div>
-      </div>
-
-      <form method="GET" class="filters">
-        <div>
-          <label>Szukaj</label>
-          <input
-            type="text"
-            name="q"
-            value="{{ request.args.get('q', '') }}"
-            placeholder="nazwa, nieruchomość"
-          />
+          </div>
         </div>
 
-        <div>
-          <label>Nieruchomość</label>
-          <select name="nieruchomosc">
-            <option value="">(wszystkie)</option>
-            {% for p in used_properties %}
-            <option
-              value="{{ p }}"
-              {% if request.args.get('nieruchomosc') == p %}selected{% endif %}
-            >
-              {{ p }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div>
-          <label>Przegląd</label>
-          <select name="nazwa">
-            <option value="">(wszystkie)</option>
-            {% for n in used_names %}
-            <option
-              value="{{ n }}"
-              {% if request.args.get('nazwa') == n %}selected{% endif %}
-            >
-              {{ n }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div>
-          <label>Status</label>
-          <select name="status">
-            <option value="">(wszystkie)</option>
-            {% for s in used_status %}
-            <option
-              value="{{ s }}"
-              {% if request.args.get('status') == s %}selected{% endif %}
-            >
-              {{ s }}
-            </option>
-            {% endfor %}
-          </select>
-          {% if status_default_applied %}
-          <div class="filter-hint">Domyślnie widzisz tylko Nadchodzące i Zaległe.</div>
-          {% endif %}
-        </div>
-
-        <div>
-          <label>Uwagi</label>
-          <select name="uwagi">
-            <option value="">(wszystkie)</option>
-            <option value="tak" {% if request.args.get('uwagi') == "tak" %}selected{% endif %}>
-              Ma uwagi
-            </option>
-            <option value="nie" {% if request.args.get('uwagi') == "nie" %}selected{% endif %}>
-              Bez uwag
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label>Segment</label>
-          <select name="segment">
-            <option value="">(wszystkie)</option>
-            {% for seg in used_segments %}
-            <option
-              value="{{ seg }}"
-              {% if request.args.get('segment') == seg %}selected{% endif %}
-            >
-              {{ seg }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div>
-          <label>Sortowanie</label>
-          <select name="sort">
-            <option value="default" {% if request.args.get('sort','default') == 'default' %}selected{% endif %}>Domyślne</option>
-            <option value="nieruchomosc" {% if request.args.get('sort') == 'nieruchomosc' %}selected{% endif %}>Nieruchomość</option>
-            <option value="nazwa" {% if request.args.get('sort') == 'nazwa' %}selected{% endif %}>Nazwa</option>
-            <option value="kolejna_data" {% if request.args.get('sort') == 'kolejna_data' %}selected{% endif %}>Kolejna data</option>
-          </select>
+        <div class="filters">
+          <div class="filter-field">
+            <label for="filterSearch">Szukaj</label>
+            <input
+              type="text"
+              id="filterSearch"
+              name="q"
+              value="{{ request.args.get('q', '') }}"
+              placeholder="nazwa, nieruchomość"
+            />
+          </div>
+          <div class="filter-field">
+            <label for="filterSort">Sortowanie</label>
+            <select name="sort" id="filterSort">
+              <option value="default" {% if request.args.get('sort','default') == 'default' %}selected{% endif %}>Domyślne</option>
+              <option value="nieruchomosc" {% if request.args.get('sort') == 'nieruchomosc' %}selected{% endif %}>Nieruchomość</option>
+              <option value="nazwa" {% if request.args.get('sort') == 'nazwa' %}selected{% endif %}>Nazwa</option>
+              <option value="kolejna_data" {% if request.args.get('sort') == 'kolejna_data' %}selected{% endif %}>Kolejna data</option>
+            </select>
+          </div>
         </div>
       </form>
 
@@ -340,12 +402,58 @@
 
     <script>
       document.addEventListener('DOMContentLoaded', () => {
+        const filtersForm = document.getElementById('filtersForm');
+        const filterTrigger = document.getElementById('filterTrigger');
+        const filterPanel = document.getElementById('filterPanel');
+        const filterShell = filterTrigger ? filterTrigger.closest('.filter-shell') : null;
 
-        document.querySelectorAll('.filters select').forEach(select => {
-          select.addEventListener('change', () => {
-            select.form.submit();
+        if (filtersForm) {
+          const submitFilters = () => {
+            if (typeof filtersForm.requestSubmit === 'function') {
+              filtersForm.requestSubmit();
+            } else {
+              filtersForm.submit();
+            }
+          };
+
+          filtersForm.querySelectorAll('.filter-panel input[type="checkbox"]').forEach(input => {
+            input.addEventListener('change', submitFilters);
           });
-        });
+
+          const sortSelect = filtersForm.querySelector('#filterSort');
+          if (sortSelect) {
+            sortSelect.addEventListener('change', submitFilters);
+          }
+        }
+
+        if (filterTrigger && filterPanel) {
+          const closePanel = () => {
+            filterPanel.classList.remove('is-open');
+            filterTrigger.setAttribute('aria-expanded', 'false');
+          };
+          const togglePanel = () => {
+            const isOpen = filterPanel.classList.contains('is-open');
+            filterPanel.classList.toggle('is-open', !isOpen);
+            filterTrigger.setAttribute('aria-expanded', String(!isOpen));
+          };
+
+          filterTrigger.addEventListener('click', event => {
+            event.stopPropagation();
+            togglePanel();
+          });
+
+          document.addEventListener('click', event => {
+            if (!filterPanel.classList.contains('is-open')) return;
+            if (filterShell && filterShell.contains(event.target)) return;
+            closePanel();
+          });
+
+          document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+              closePanel();
+            }
+          });
+        }
 
         const modal = document.getElementById('uwagiModal');
         const modalText = document.getElementById('uwagiText');

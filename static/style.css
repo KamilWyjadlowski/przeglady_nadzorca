@@ -137,10 +137,142 @@ table td:nth-child(11) {
   border-radius: 12px;
 }
 
+.filters-form {
+  display: block;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.filter-field input,
+.filter-field select {
+  width: 100%;
+}
+
 .filters label {
   font-weight: 600;
   font-size: 13px;
   color: #475569;
+}
+
+.filter-shell {
+  position: relative;
+}
+
+.filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.filter-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.filter-badge {
+  background: #2563eb;
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filter-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(320px, 90vw);
+  max-height: 70vh;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.15);
+  z-index: 50;
+}
+
+.filter-panel.is-open {
+  display: block;
+}
+
+.filter-panel-header {
+  margin-bottom: 10px;
+}
+
+.filter-panel-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.filter-panel-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.filter-group {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.filter-group:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.filter-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.filter-option:hover {
+  background: #f1f5f9;
+}
+
+.filter-option input {
+  accent-color: #2563eb;
+}
+
+.filter-empty {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.filter-panel-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .properties-section {

@@ -679,13 +679,13 @@ def load_inspections_for_user(db, user):
 
 def filter_inspections(inspections, args):
     """Filtruje i sortuje listę przeglądów na podstawie parametrów requestu."""
-    f_n = args.get("nieruchomosc", "").strip()
-    f_name = args.get("nazwa", "").strip()
-    f_status = args.get("status", "").strip()
+    f_n = [v.strip() for v in args.getlist("nieruchomosc") if v.strip()]
+    f_name = [v.strip() for v in args.getlist("nazwa") if v.strip()]
+    f_status = [v.strip() for v in args.getlist("status") if v.strip()]
     status_param_present = "status" in args
     default_statuses = {"Zaległy", "Nadchodzące"}
-    f_uwagi = args.get("uwagi", "").strip()
-    f_segment = args.get("segment", "").strip()
+    f_uwagi = [v.strip() for v in args.getlist("uwagi") if v.strip()]
+    f_segment = [v.strip() for v in args.getlist("segment") if v.strip()]
     f_q = args.get("q", "").strip().lower()
     sort_by = args.get("sort", "default")
 
@@ -694,21 +694,23 @@ def filter_inspections(inspections, args):
         opis = (ins.get("opis") or "").strip()
         ok = True
 
-        if f_n and ins.get("nieruchomosc") != f_n:
+        if f_n and ins.get("nieruchomosc") not in f_n:
             ok = False
-        if f_name and ins.get("nazwa") != f_name:
+        if f_name and ins.get("nazwa") not in f_name:
             ok = False
         if status_param_present:
-            if f_status and ins.get("status") != f_status:
+            if f_status and ins.get("status") not in f_status:
                 ok = False
         else:
             if ins.get("status") not in default_statuses:
                 ok = False
-        if f_uwagi == "tak" and opis.lower() in ("", "brak uwag"):
+        has_tak = "tak" in f_uwagi
+        has_nie = "nie" in f_uwagi
+        if has_tak and not has_nie and opis.lower() in ("", "brak uwag"):
             ok = False
-        if f_uwagi == "nie" and opis.lower() not in ("", "brak uwag"):
+        if has_nie and not has_tak and opis.lower() not in ("", "brak uwag"):
             ok = False
-        if f_segment and ins.get("segment") != f_segment:
+        if f_segment and ins.get("segment") not in f_segment:
             ok = False
         if f_q:
             hay = " ".join(
@@ -767,8 +769,9 @@ def filter_inspections(inspections, args):
 
 def build_property_cards(inspections, args):
     """Przygotowuje kafelki nieruchomości z licznikami statusów."""
-    current_property = args.get("nieruchomosc", "").strip()
-    base_args = args.to_dict()
+    current_properties = [v.strip() for v in args.getlist("nieruchomosc") if v.strip()]
+    current_property = current_properties[0] if len(current_properties) == 1 else ""
+    base_args = args.to_dict(flat=False)
     base_args.pop("page", None)
 
     cards_map: Dict[str, Dict] = {}
@@ -845,6 +848,23 @@ def index():
     property_cards = build_property_cards(inspections, request.args)
     status_default_applied = "status" not in request.args
 
+    selected_properties = [v for v in request.args.getlist("nieruchomosc") if v]
+    selected_names = [v for v in request.args.getlist("nazwa") if v]
+    selected_status = [v for v in request.args.getlist("status") if v]
+    selected_uwagi = [v for v in request.args.getlist("uwagi") if v]
+    selected_segments = [v for v in request.args.getlist("segment") if v]
+    default_statuses = ["Zaległy", "Nadchodzące"]
+    status_selected = (
+        selected_status if not status_default_applied else default_statuses
+    )
+    active_filter_count = (
+        len(selected_properties)
+        + len(selected_names)
+        + (len(selected_status) if not status_default_applied else 0)
+        + len(selected_uwagi)
+        + len(selected_segments)
+    )
+
     total = len(filtered)
     total_pages = max(1, ceil(total / per_page)) if total else 1
     if page > total_pages:
@@ -853,11 +873,15 @@ def index():
     end = start + per_page
     page_items = filtered[start:end]
 
-    args_dict = request.args.to_dict()
+    args_dict = request.args.to_dict(flat=False)
     args_no_page = args_dict.copy()
     args_no_page.pop("page", None)
     clear_property_url = url_for(
         "index", **{k: v for k, v in args_no_page.items() if k != "nieruchomosc"}
+    )
+    clear_filters_url = url_for(
+        "index",
+        **{k: v for k, v in args_no_page.items() if k not in {"nieruchomosc", "nazwa", "status", "uwagi", "segment"}},
     )
 
     def build_page_url(num):
@@ -878,7 +902,14 @@ def index():
         used_segments=used_segments,
         property_cards=property_cards,
         status_default_applied=status_default_applied,
+        selected_properties=selected_properties,
+        selected_names=selected_names,
+        status_selected=status_selected,
+        selected_uwagi=selected_uwagi,
+        selected_segments=selected_segments,
+        active_filter_count=active_filter_count,
         clear_property_url=clear_property_url,
+        clear_filters_url=clear_filters_url,
         page=page,
         total_pages=total_pages,
         prev_url=prev_url,
