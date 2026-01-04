@@ -16,8 +16,7 @@
         <div class="user-panel">
           <a href="{{ url_for('index') }}" class="btn">⬅ Lista przeglądów</a>
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
-          <a href="{{ url_for('profile') }}" class="btn">Profil</a>
-          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+                    <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
           </form>

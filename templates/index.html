@@ -17,8 +17,7 @@
           <a class="user-name user-link" href="{{ url_for('profile') }}">
             Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
           </a>
-          <a href="{{ url_for('profile') }}" class="btn">Profil</a>
-          <a href="{{ url_for('calendar_view') }}" class="btn">Kalendarz</a>
+                    <a href="{{ url_for('calendar_view') }}" class="btn">Kalendarz</a>
           {% if current_user and current_user.role == "admin" %}
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
           <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>

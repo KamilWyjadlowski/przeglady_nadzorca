@@ -14,8 +14,7 @@
         </div>
         <div class="user-panel">
           <a href="{{ url_for('index') }}" class="btn">← Lista</a>
-          <a href="{{ url_for('profile') }}" class="btn">Profil</a>
-          {% if current_user and current_user.role == "admin" %}
+                    {% if current_user and current_user.role == "admin" %}
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
           <a href="{{ url_for('admin_notifications') }}" class="btn">Powiadomienia</a>
           {% endif %}
