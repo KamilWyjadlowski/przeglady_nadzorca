@@ -117,6 +117,63 @@ table td:nth-child(11) {
   width: 60px;
 }
 
+.actions-cell {
+  text-align: center;
+}
+
+.action-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-form {
+  margin: 0;
+  display: inline-flex;
+}
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #d0d7de;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.action-icon:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.action-icon:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.action-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-icon--danger {
+  color: #b91c1c;
+  background: #fff5f5;
+  border-color: #f1c7c7;
+}
+
+.action-icon--danger:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
 .admin-props-table {
   table-layout: fixed;
 }
