@@ -4,3 +4,4 @@ pymysql
 SQLAlchemy
 flask-session
 python-dotenv
+openpyxl

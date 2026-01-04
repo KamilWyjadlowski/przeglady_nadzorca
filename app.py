@@ -22,6 +22,9 @@ from math import ceil
 from typing import List, Dict, Optional
 from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
 from sqlalchemy import (
     create_engine,
     Column,
@@ -223,6 +226,11 @@ def add_months(d: date, months: int) -> date:
 def clean_empty_notes(text: str) -> str:
     text = text.strip()
     return text if text else "Brak uwag"
+
+
+def export_filename(ext: str) -> str:
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    return f"przeglady_{stamp}.{ext}"
 
 
 def normalize_phone(phone: str) -> str:
@@ -966,6 +974,7 @@ def index():
 
 
 @app.route("/export")
+@app.route("/export.csv")
 @login_required
 def export_csv():
     db = get_db()
@@ -973,7 +982,7 @@ def export_csv():
     filtered = filter_inspections(inspections, request.args)
 
     output = io.StringIO()
-    writer = csv.writer(output)
+    writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL)
     writer.writerow(
         [
             "ID",
@@ -993,7 +1002,7 @@ def export_csv():
         writer.writerow(
             [
                 ins.get("id") or ins.get("idx"),
-                ins.get("nieruchomosc", ""),
+                format_property(ins.get("nieruchomosc", "")),
                 ins.get("nazwa", ""),
                 ins.get("segment", ""),
                 ins.get("firma", ""),
@@ -1006,11 +1015,97 @@ def export_csv():
             ]
         )
 
-    csv_data = output.getvalue()
+    csv_data = output.getvalue().encode("utf-8-sig")
     return Response(
         csv_data,
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=przeglady.csv"},
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={export_filename('csv')}"},
+    )
+
+
+@app.route("/export.xlsx")
+@login_required
+def export_xlsx():
+    db = get_db()
+    inspections = load_inspections_for_user(db, g.user)
+    filtered = filter_inspections(inspections, request.args)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Przeglady"
+
+    headers = [
+        "ID",
+        "Nieruchomość",
+        "Nazwa",
+        "Segment",
+        "Firma",
+        "Telefon",
+        "Email",
+        "Ostatnia data",
+        "Kolejna data",
+        "Status",
+        "Uwagi",
+    ]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    def parse_iso(raw: str):
+        try:
+            return date.fromisoformat(raw)
+        except Exception:
+            return None
+
+    for ins in filtered:
+        last_date = parse_iso(ins.get("ostatnia_data", ""))
+        next_date = parse_iso(ins.get("kolejna_data", ""))
+        ws.append(
+            [
+                ins.get("id") or ins.get("idx"),
+                format_property(ins.get("nieruchomosc", "")),
+                ins.get("nazwa", ""),
+                ins.get("segment", ""),
+                ins.get("firma", ""),
+                ins.get("telefon", ""),
+                ins.get("email", ""),
+                last_date,
+                next_date,
+                ins.get("status", ""),
+                (ins.get("opis") or "").replace("\n", " ").strip(),
+            ]
+        )
+
+    date_cols = [8, 9]
+    for row in ws.iter_rows(min_row=2, min_col=1, max_col=len(headers)):
+        for idx in date_cols:
+            cell = row[idx - 1]
+            if isinstance(cell.value, date):
+                cell.number_format = "yyyy-mm-dd"
+
+    widths = [len(h) for h in headers]
+    for row in ws.iter_rows(min_row=2, max_col=len(headers)):
+        for i, cell in enumerate(row):
+            value = cell.value
+            if isinstance(value, date):
+                text = value.isoformat()
+            elif value is None:
+                text = ""
+            else:
+                text = str(value)
+            widths[i] = max(widths[i], len(text))
+    for i, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = min(max(width + 2, 10), 40)
+
+    ws.freeze_panes = "A2"
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={export_filename('xlsx')}"},
     )
 
 

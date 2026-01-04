@@ -11,8 +11,7 @@
     <div class="container">
       <div class="topbar">
         <div class="brand">
-          <strong>Nadzorca przeglądów</strong>
-          <span class="tag">{{ app_version }}</span>
+          <div class="brand-title">Nadzorca przeglądów <span class="brand-version">{{ app_version }}</span></div>
         </div>
         <div class="user-panel">
           <a class="user-name user-link" href="{{ url_for('profile') }}">
@@ -35,13 +34,7 @@
       <form method="GET" class="filters-form" id="filtersForm">
         <div class="header-row">
           <h2>Lista przeglądów</h2>
-          <div class="header-actions">
-            <a
-              href="{{ url_for('export_csv', **(args_dict or {})) }}"
-              class="btn btn-ghost"
-              >⬇️ Eksport CSV</a
-            >
-          </div>
+          <div class="header-actions"></div>
         </div>
 
         <div class="properties-section">
@@ -98,14 +91,14 @@
               <div class="filter-shell">
                 <button
                   type="button"
-                  class="filter-trigger"
+                  class="icon-trigger filter-trigger"
                   id="filterTrigger"
                   aria-expanded="false"
                   aria-controls="filterPanel"
                   aria-label="Filtry"
                   title="Filtry"
                 >
-                  <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                       d="M3 5h18l-7 8v5l-4 1v-6L3 5z"
                       fill="currentColor"
@@ -272,6 +265,33 @@
                   </div>
                 </div>
               </div>
+              <div class="filter-shell">
+                <button
+                  type="button"
+                  class="icon-trigger export-trigger"
+                  id="exportTrigger"
+                  aria-expanded="false"
+                  aria-controls="exportPanel"
+                  aria-label="Eksport"
+                  title="Eksport"
+                >
+                  <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42-4.7 4.7-4.7-4.7 1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1zm-7 14h14v2H5v-2z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+                <div class="filter-panel export-panel" id="exportPanel" role="dialog" aria-label="Eksport">
+                  <a class="menu-item" href="{{ url_for('export_xlsx', **(args_dict or {})) }}">
+                    <span class="menu-item-title">Pobierz XLSX</span>
+                  </a>
+                  <a class="menu-item" href="{{ url_for('export_csv', **(args_dict or {})) }}">
+                    <span class="menu-item-title">Pobierz CSV</span>
+                    <span class="menu-item-meta">CSV (dla integracji/importu)</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -436,9 +456,8 @@
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         const filtersForm = document.getElementById('filtersForm');
-        const filterTrigger = document.getElementById('filterTrigger');
-        const filterPanel = document.getElementById('filterPanel');
-        const filterShell = filterTrigger ? filterTrigger.closest('.filter-shell') : null;
+        const popovers = [];
+        const popoverShells = [];
 
         if (filtersForm) {
           const submitFilters = () => {
@@ -456,34 +475,57 @@
           });
         }
 
-        if (filterTrigger && filterPanel) {
-          const closePanel = () => {
-            filterPanel.classList.remove('is-open');
-            filterTrigger.setAttribute('aria-expanded', 'false');
-          };
-          const togglePanel = () => {
-            const isOpen = filterPanel.classList.contains('is-open');
-            filterPanel.classList.toggle('is-open', !isOpen);
-            filterTrigger.setAttribute('aria-expanded', String(!isOpen));
+        const closeAllPopovers = () => {
+          popovers.forEach(item => item.close());
+        };
+
+        const setupPopover = (triggerId, panelId) => {
+          const trigger = document.getElementById(triggerId);
+          const panel = document.getElementById(panelId);
+          if (!trigger || !panel) return;
+
+          const shell = trigger.closest('.filter-shell');
+          if (shell) {
+            popoverShells.push(shell);
+          }
+
+          const open = () => {
+            panel.classList.add('is-open');
+            trigger.setAttribute('aria-expanded', 'true');
           };
 
-          filterTrigger.addEventListener('click', event => {
+          const close = () => {
+            panel.classList.remove('is-open');
+            trigger.setAttribute('aria-expanded', 'false');
+          };
+
+          popovers.push({ panel, close });
+
+          trigger.addEventListener('click', event => {
             event.stopPropagation();
-            togglePanel();
-          });
-
-          document.addEventListener('click', event => {
-            if (!filterPanel.classList.contains('is-open')) return;
-            if (filterShell && filterShell.contains(event.target)) return;
-            closePanel();
-          });
-
-          document.addEventListener('keydown', event => {
-            if (event.key === 'Escape') {
-              closePanel();
+            const isOpen = panel.classList.contains('is-open');
+            closeAllPopovers();
+            if (!isOpen) {
+              open();
             }
           });
-        }
+        };
+
+        setupPopover('filterTrigger', 'filterPanel');
+        setupPopover('exportTrigger', 'exportPanel');
+
+        document.addEventListener('click', event => {
+          if (popoverShells.some(shell => shell && shell.contains(event.target))) {
+            return;
+          }
+          closeAllPopovers();
+        });
+
+        document.addEventListener('keydown', event => {
+          if (event.key === 'Escape') {
+            closeAllPopovers();
+          }
+        });
 
         const modal = document.getElementById('uwagiModal');
         const modalText = document.getElementById('uwagiText');
