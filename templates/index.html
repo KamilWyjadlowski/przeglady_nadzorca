@@ -42,6 +42,61 @@
               class="btn btn-ghost"
               >⬇️ Eksport CSV</a
             >
+          </div>
+        </div>
+
+        <div class="properties-section">
+          <div class="properties-head">
+            <div>
+              <div class="eyebrow">Twoje nieruchomości</div>
+              <div class="properties-title">Kliknij kafelek, aby otworzyć przeglądy dla wybranego obiektu.</div>
+            </div>
+            <div class="properties-actions">
+              {% if request.args.get('nieruchomosc') %}
+              <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
+              {% endif %}
+            </div>
+          </div>
+          <div class="property-grid">
+            {% for card in property_cards %}
+            <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
+              <div class="property-card-header">
+                <div class="property-card-name">{{ card.name }}</div>
+                {% if card.property_id %}
+                <span class="property-chip">ID {{ card.property_id }}</span>
+                {% endif %}
+              </div>
+              {% if card.segment %}
+              <div class="property-card-segment">{{ card.segment }}</div>
+              {% endif %}
+              <div class="property-card-counts">
+                <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
+                <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
+                <span class="pill pill-current">{{ card.current }} aktualne</span>
+              </div>
+              {% if card.next_due_label %}
+              <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
+              {% endif %}
+            </a>
+            {% endfor %}
+            {% if not property_cards %}
+            <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="filters">
+          <div class="filter-field filter-field-search">
+            <label class="sr-only" for="filterSearch">Szukaj</label>
+            <input
+              type="text"
+              id="filterSearch"
+              name="q"
+              value="{{ request.args.get('q', '') }}"
+              placeholder="Szukaj"
+            />
+          </div>
+          <div class="filter-actions">
             <div class="filter-shell">
               <button
                 type="button"
@@ -49,6 +104,8 @@
                 id="filterTrigger"
                 aria-expanded="false"
                 aria-controls="filterPanel"
+                aria-label="Filtry"
+                title="Filtry"
               >
                 <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -56,14 +113,56 @@
                     fill="currentColor"
                   />
                 </svg>
-                Filtry
                 {% if active_filter_count %}
                 <span class="filter-badge">{{ active_filter_count }}</span>
                 {% endif %}
               </button>
               <div class="filter-panel" id="filterPanel" role="dialog" aria-label="Filtry">
+                {% set current_sort = request.args.get('sort', 'default') %}
                 <div class="filter-panel-header">
                   <div class="filter-panel-title">Filtry</div>
+                </div>
+
+                <div class="filter-group">
+                  <div class="filter-group-title">Sortowanie</div>
+                  <div class="filter-options">
+                    <label class="filter-option">
+                      <input
+                        type="radio"
+                        name="sort"
+                        value="default"
+                        {% if current_sort == "default" %}checked{% endif %}
+                      />
+                      <span>Domyślne</span>
+                    </label>
+                    <label class="filter-option">
+                      <input
+                        type="radio"
+                        name="sort"
+                        value="nieruchomosc"
+                        {% if current_sort == "nieruchomosc" %}checked{% endif %}
+                      />
+                      <span>Nieruchomość</span>
+                    </label>
+                    <label class="filter-option">
+                      <input
+                        type="radio"
+                        name="sort"
+                        value="nazwa"
+                        {% if current_sort == "nazwa" %}checked{% endif %}
+                      />
+                      <span>Nazwa</span>
+                    </label>
+                    <label class="filter-option">
+                      <input
+                        type="radio"
+                        name="sort"
+                        value="kolejna_data"
+                        {% if current_sort == "kolejna_data" %}checked{% endif %}
+                      />
+                      <span>Kolejna data</span>
+                    </label>
+                  </div>
                 </div>
 
                 <div class="filter-group">
@@ -175,68 +274,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class="properties-section">
-          <div class="properties-head">
-            <div>
-              <div class="eyebrow">Twoje nieruchomości</div>
-              <div class="properties-title">Kliknij kafelek, aby otworzyć przeglądy dla wybranego obiektu.</div>
-            </div>
-            <div class="properties-actions">
-              {% if request.args.get('nieruchomosc') %}
-              <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
-              {% endif %}
-            </div>
-          </div>
-          <div class="property-grid">
-            {% for card in property_cards %}
-            <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
-              <div class="property-card-header">
-                <div class="property-card-name">{{ card.name }}</div>
-                {% if card.property_id %}
-                <span class="property-chip">ID {{ card.property_id }}</span>
-                {% endif %}
-              </div>
-              {% if card.segment %}
-              <div class="property-card-segment">{{ card.segment }}</div>
-              {% endif %}
-              <div class="property-card-counts">
-                <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
-                <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
-                <span class="pill pill-current">{{ card.current }} aktualne</span>
-              </div>
-              {% if card.next_due_label %}
-              <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
-              {% endif %}
-            </a>
-            {% endfor %}
-            {% if not property_cards %}
-            <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
-            {% endif %}
-          </div>
-        </div>
-
-        <div class="filters">
-          <div class="filter-field">
-            <label for="filterSearch">Szukaj</label>
-            <input
-              type="text"
-              id="filterSearch"
-              name="q"
-              value="{{ request.args.get('q', '') }}"
-              placeholder="nazwa, nieruchomość"
-            />
-          </div>
-          <div class="filter-field">
-            <label for="filterSort">Sortowanie</label>
-            <select name="sort" id="filterSort">
-              <option value="default" {% if request.args.get('sort','default') == 'default' %}selected{% endif %}>Domyślne</option>
-              <option value="nieruchomosc" {% if request.args.get('sort') == 'nieruchomosc' %}selected{% endif %}>Nieruchomość</option>
-              <option value="nazwa" {% if request.args.get('sort') == 'nazwa' %}selected{% endif %}>Nazwa</option>
-              <option value="kolejna_data" {% if request.args.get('sort') == 'kolejna_data' %}selected{% endif %}>Kolejna data</option>
-            </select>
           </div>
         </div>
       </form>
@@ -413,14 +450,11 @@
             }
           };
 
-          filtersForm.querySelectorAll('.filter-panel input[type="checkbox"]').forEach(input => {
+          filtersForm
+            .querySelectorAll('.filter-panel input[type="checkbox"], .filter-panel input[type="radio"]')
+            .forEach(input => {
             input.addEventListener('change', submitFilters);
           });
-
-          const sortSelect = filtersForm.querySelector('#filterSort');
-          if (sortSelect) {
-            sortSelect.addEventListener('change', submitFilters);
-          }
         }
 
         if (filterTrigger && filterPanel) {

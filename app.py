@@ -869,7 +869,12 @@ def index():
     )
     clear_filters_url = url_for(
         "index",
-        **{k: v for k, v in args_no_page.items() if k not in {"nieruchomosc", "nazwa", "status", "uwagi", "segment"}},
+        **{
+            k: v
+            for k, v in args_no_page.items()
+            if k
+            not in {"nieruchomosc", "nazwa", "status", "uwagi", "segment", "sort"}
+        },
     )
 
     def build_page_url(num):
@@ -989,7 +994,7 @@ def validate_form(form):
         errors["nieruchomosc"] = "Nieruchomość jest wymagana."
 
     if not form["segment"]:
-        errors["segment"] = "Wybierz segment — Detal lub Hurt."
+        errors["segment"] = "Wybierz segment — Detal, Hurt lub Pozostałe."
 
     email = form.get("email", "")
     if email:

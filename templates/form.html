@@ -90,6 +90,7 @@
     <option value="">(wybierz)</option>
     <option value="Detal" {% if form.segment == "Detal" %}selected{% endif %}>Detal</option>
     <option value="Hurt" {% if form.segment == "Hurt" %}selected{% endif %}>Hurt</option>
+    <option value="Pozostałe" {% if form.segment == "Pozostałe" %}selected{% endif %}>Pozostałe</option>
   </select>
 
   {% if errors.segment %}
