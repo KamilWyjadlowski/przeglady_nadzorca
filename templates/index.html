@@ -64,9 +64,6 @@
               <div class="filter-panel" id="filterPanel" role="dialog" aria-label="Filtry">
                 <div class="filter-panel-header">
                   <div class="filter-panel-title">Filtry</div>
-                  {% if status_default_applied %}
-                  <div class="filter-panel-hint">Domyślnie: Zaległe i Nadchodzące.</div>
-                  {% endif %}
                 </div>
 
                 <div class="filter-group">
@@ -118,7 +115,7 @@
                         type="checkbox"
                         name="status"
                         value="{{ s }}"
-                        {% if s in status_selected %}checked{% endif %}
+                        {% if s in selected_status %}checked{% endif %}
                       />
                       <span>{{ s }}</span>
                     </label>

@@ -682,8 +682,6 @@ def filter_inspections(inspections, args):
     f_n = [v.strip() for v in args.getlist("nieruchomosc") if v.strip()]
     f_name = [v.strip() for v in args.getlist("nazwa") if v.strip()]
     f_status = [v.strip() for v in args.getlist("status") if v.strip()]
-    status_param_present = "status" in args
-    default_statuses = {"Zaległy", "Nadchodzące"}
     f_uwagi = [v.strip() for v in args.getlist("uwagi") if v.strip()]
     f_segment = [v.strip() for v in args.getlist("segment") if v.strip()]
     f_q = args.get("q", "").strip().lower()
@@ -698,12 +696,8 @@ def filter_inspections(inspections, args):
             ok = False
         if f_name and ins.get("nazwa") not in f_name:
             ok = False
-        if status_param_present:
-            if f_status and ins.get("status") not in f_status:
-                ok = False
-        else:
-            if ins.get("status") not in default_statuses:
-                ok = False
+        if f_status and ins.get("status") not in f_status:
+            ok = False
         has_tak = "tak" in f_uwagi
         has_nie = "nie" in f_uwagi
         if has_tak and not has_nie and opis.lower() in ("", "brak uwag"):
@@ -846,21 +840,15 @@ def index():
     used_status = get_unique(inspections, "status")
     used_segments = get_unique(inspections, "segment")
     property_cards = build_property_cards(inspections, request.args)
-    status_default_applied = "status" not in request.args
-
     selected_properties = [v for v in request.args.getlist("nieruchomosc") if v]
     selected_names = [v for v in request.args.getlist("nazwa") if v]
     selected_status = [v for v in request.args.getlist("status") if v]
     selected_uwagi = [v for v in request.args.getlist("uwagi") if v]
     selected_segments = [v for v in request.args.getlist("segment") if v]
-    default_statuses = ["Zaległy", "Nadchodzące"]
-    status_selected = (
-        selected_status if not status_default_applied else default_statuses
-    )
     active_filter_count = (
         len(selected_properties)
         + len(selected_names)
-        + (len(selected_status) if not status_default_applied else 0)
+        + len(selected_status)
         + len(selected_uwagi)
         + len(selected_segments)
     )
@@ -901,10 +889,9 @@ def index():
         used_uwagi=["tak", "nie"],
         used_segments=used_segments,
         property_cards=property_cards,
-        status_default_applied=status_default_applied,
         selected_properties=selected_properties,
         selected_names=selected_names,
-        status_selected=status_selected,
+        selected_status=selected_status,
         selected_uwagi=selected_uwagi,
         selected_segments=selected_segments,
         active_filter_count=active_filter_count,
