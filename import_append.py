@@ -1,8 +1,3 @@
-"""
-Jednorazowy import nowych przeglądów z przeglady.json bez kasowania istniejących.
-Uruchom po ustawieniu zmiennych DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT/SECRET_KEY.
-"""
-
 import json
 from datetime import date
 
@@ -39,7 +34,6 @@ def main():
         except ValueError:
             continue
 
-        # prosty dedupe: nieruchomość + nazwa + ostatnia_data
         existing = (
             db.query(Inspection)
             .filter(

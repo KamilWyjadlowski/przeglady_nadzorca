@@ -32,17 +32,11 @@
       </div>
 
       <form method="GET" class="filters-form" id="filtersForm">
-        <div class="header-row">
-          <h2>Lista przeglądów</h2>
-          <div class="header-actions"></div>
-        </div>
-
         <div class="properties-section">
           <div class="properties-head">
-          <div class="properties-title-wrap">
-            <div class="eyebrow">Twoje nieruchomości</div>
-            <div class="properties-title">Wzorce przeglądów</div>
-          </div>
+            <div class="properties-title-wrap">
+              <div class="eyebrow">TWOJE NIERUCHOMOŚCI</div>
+            </div>
             <div class="properties-actions">
               {% if request.args.get('nieruchomosc') %}
               <a href="{{ clear_property_url }}" class="btn btn-ghost">Pokaż wszystkie</a>
@@ -72,6 +66,11 @@
             <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
             {% endif %}
           </div>
+        </div>
+
+        <div class="header-row">
+          <h2>Lista przeglądów</h2>
+          <div class="header-actions"></div>
         </div>
 
         <div class="filters">

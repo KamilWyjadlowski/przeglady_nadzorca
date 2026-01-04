@@ -132,7 +132,7 @@ class InspectionOccurrence(Base):
     done_date = Column(Date)
     status = Column(
         String(32), nullable=False, default="planned"
-    )  # planned/done/overdue
+    )
     note = Column(Text)
     performed_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
@@ -140,11 +140,6 @@ class InspectionOccurrence(Base):
 
 
 def parse_date(s: str) -> date:
-    """
-    Akceptuje format:
-    - RRRR-MM-DD (ISO)
-    - DD.MM.RRRR
-    """
     s = s.strip()
 
     if "." in s:
@@ -247,7 +242,6 @@ def normalize_phone(phone: str) -> str:
 
 
 def ensure_property_ids(inspections: List[Dict]) -> tuple[bool, Dict[str, str], int]:
-    """Zapewnia property_id dla każdej nieruchomości. Zwraca (changed, map, max_num)."""
     mapping: Dict[str, str] = {}
     max_num = 0
     pat = re.compile(r"^P(\\d+)$")
@@ -432,7 +426,6 @@ def get_recipients_for_inspection(db, ins: Inspection) -> list[str]:
         u = db.query(User).filter_by(username=pa.username).first()
         if u and u.email:
             recipients.append(u.email)
-    # dedupe
     return sorted({r.strip() for r in recipients if r.strip()})
 
 
@@ -544,7 +537,6 @@ def teardown_db(exc):
     db = getattr(g, "db", None)
     if db:
         db.close()
-    # wyślij ewentualne batche maili po zakończeniu żądania
     try:
         flush_mail_queue()
     except Exception:
@@ -577,7 +569,6 @@ def get_db():
 
 
 def ensure_occurrences_for_inspection(db, ins: Inspection, commit: bool = True) -> bool:
-    """Jeśli przegląd nie ma historii, twórz: wykonane (ostatnia_data) + planowane (kolejna_data)."""
     if ins.occurrences:
         return False
     if ins.ostatnia_data:
@@ -643,7 +634,6 @@ def get_unique(inspections: List[Dict], key: str) -> List[str]:
 
 
 def compute_property_owner_map(inspections: List[Dict]) -> Dict[str, str]:
-    """Zwraca mapę nieruchomość -> właściciel (na podstawie pierwszego rekordu)."""
     owners: Dict[str, str] = {}
     for ins in inspections:
         prop = ins.get("nieruchomosc")
@@ -653,7 +643,6 @@ def compute_property_owner_map(inspections: List[Dict]) -> Dict[str, str]:
 
 
 def slugify_property(prop: str) -> str:
-    """Prosty slug do użycia w nazwach pól formularza."""
     return (
         (prop or "")
         .replace(" ", "_")
@@ -665,14 +654,12 @@ def slugify_property(prop: str) -> str:
 
 
 def user_can_manage_access(user: Dict, inspection: Dict) -> bool:
-    """Kto może zmieniać ownera i dostęp: admin lub właściciel."""
     if is_admin(user):
         return True
     return inspection.get("owner") == user.get("username")
 
 
 def add_new_planned_occurrence(db, ins: Inspection, done_date: date):
-    """Po wykonaniu generuje nowe planowane wystąpienie i aktualizuje przegląd."""
     before_status = ins.status
     next_due = add_months(done_date, ins.czestotliwosc_miesiace)
     ins.ostatnia_data = done_date
@@ -707,7 +694,6 @@ def login_required(view_func):
 
 
 def load_inspections_for_user(db, user):
-    """Zwraca listę przeglądów dostępnych dla użytkownika (dane słownikowe)."""
     ensure_occurrences_seed(db)
     ensure_properties_seed(db)
     prop_access = get_property_access_map(db)
@@ -739,7 +725,6 @@ def load_inspections_for_user(db, user):
 
 
 def filter_inspections(inspections, args):
-    """Filtruje i sortuje listę przeglądów na podstawie parametrów requestu."""
     f_n = [v.strip() for v in args.getlist("nieruchomosc") if v.strip()]
     f_name = [v.strip() for v in args.getlist("nazwa") if v.strip()]
     f_status = [v.strip() for v in args.getlist("status") if v.strip()]
@@ -823,7 +808,6 @@ def filter_inspections(inspections, args):
 
 
 def build_property_cards(inspections, args):
-    """Przygotowuje kafelki nieruchomości z licznikami statusów."""
     current_properties = [v.strip() for v in args.getlist("nieruchomosc") if v.strip()]
     current_property = current_properties[0] if len(current_properties) == 1 else ""
     base_args = args.to_dict(flat=False)
@@ -1110,7 +1094,6 @@ def export_xlsx():
 
 
 def extract_form():
-    """Czyści pobieranie danych z formularza i zwraca słownik."""
     shared_raw = request.form.getlist("shared_with")
     property_shared_raw = request.form.getlist("property_shared_with")
     return {
@@ -1132,7 +1115,6 @@ def extract_form():
 
 
 def validate_form(form):
-    """Walidacja formularza. Zwraca errors{} lub pusty słownik."""
     errors = {}
 
     if not form["nazwa"]:
@@ -1174,7 +1156,6 @@ def validate_form(form):
 
 
 def build_company_contacts(inspections):
-    """Zbiera mapę firma -> kontakt do autouzupełniania."""
     result = {}
     for ins in inspections:
         firma = ins.get("firma")
@@ -1370,7 +1351,6 @@ def edit(idx: int):
 
             db.commit()
             ensure_occurrences_for_inspection(db, ins_obj)
-            # zaktualizuj najbliższe planowane (jeśli jest) do nowej daty
             upcoming = (
                 db.query(InspectionOccurrence)
                 .filter_by(inspection_id=ins_obj.id, status="planned")
@@ -1453,7 +1433,6 @@ def delete(idx: int):
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu do tego przeglądu.", 403
 
-    # Usuń historię/wystąpienia powiązane z przeglądem, by uniknąć błędów FK
     db.query(InspectionOccurrence).filter_by(inspection_id=ins.id).delete()
     db.delete(ins)
     db.commit()
@@ -1646,18 +1625,12 @@ def history(inspection_id: int):
 @app.route("/calendar")
 @login_required
 def calendar_view():
-    """
-    Widok kalendarza:
-    - bez parametru property pokazuje kafelki nieruchomości, do których user ma dostęp
-    - z parametrem ?property=XYZ pokazuje tygodniowy kalendarz wystąpień dla danej nieruchomości
-    """
     db = get_db()
     ensure_occurrences_seed(db)
     prop_access = get_property_access_map(db)
     property_param = request.args.get("property", "").strip()
     year_param = request.args.get("year")
 
-    # Lista dostępnych nieruchomości dla usera
     inspections = db.query(Inspection).all()
     accessible_props = sorted(
         {
@@ -1675,7 +1648,6 @@ def calendar_view():
         }
     )
 
-    # Jeśli nie wybrano nieruchomości – pokaż kafelki
     if not property_param:
         cards = []
         for prop in accessible_props:
@@ -1697,9 +1669,7 @@ def calendar_view():
             years=None,
         )
 
-    # Widok konkretnej nieruchomości
     property_name = property_param
-    # dostępne lata z terminów/daty wykonania
     available_years = set()
     occurrences_all = (
         db.query(InspectionOccurrence, Inspection)
@@ -1788,7 +1758,6 @@ def calendar_view():
                     }
                 )
 
-    # budujemy wiersze: każdy przegląd -> znaczniki w tygodniach
     rows = {}
     today = date.today()
     for evt in events:

@@ -1,23 +1,3 @@
-"""
-Migracja danych z plików JSON do MySQL (Cloud SQL lub inny).
-
-Wymagane zmienne środowiskowe:
-- DB_HOST
-- DB_PORT (domyślnie 3306)
-- DB_USER
-- DB_PASSWORD
-- DB_NAME
-
-Użycie:
-  python migrate_to_mysql.py
-
-Skrypt:
-- tworzy tabele (jeśli nie istnieją),
-- wczytuje users.json, przeglady.json, property_access.json, audit.log,
-- uzupełnia brakujące property_id w przeglądach (P0001 itd.),
-- wstawia dane do MySQL.
-"""
-
 import json
 import os
 import re
@@ -156,13 +136,11 @@ def migrate():
     ensure_property_ids(inspections)
 
     with conn.cursor() as cur:
-        # Czyścimy w kolejności dziecko -> rodzic, bez kolizji FK
         cur.execute("DELETE FROM inspection_occurrences")
         cur.execute("DELETE FROM inspections")
         cur.execute("DELETE FROM property_access")
         cur.execute("DELETE FROM audit")
 
-        # Resetujemy AUTO_INCREMENT
         cur.execute("ALTER TABLE inspection_occurrences AUTO_INCREMENT = 1")
         cur.execute("ALTER TABLE inspections AUTO_INCREMENT = 1")
         cur.execute("ALTER TABLE property_access AUTO_INCREMENT = 1")
