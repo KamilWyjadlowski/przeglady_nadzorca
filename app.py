@@ -7,6 +7,7 @@ from flask import (
     session,
     g,
     Response,
+    flash,
 )
 import calendar
 import smtplib
@@ -141,6 +142,7 @@ class CompanyContact(Base):
     contact_name = Column(String(255))
     phone = Column(String(64))
     email = Column(String(255))
+    notes = Column(Text)
 
 
 class CompanyContactAssignment(Base):
@@ -365,6 +367,18 @@ def ensure_company_tables(engine):
 
 
 ensure_company_tables(engine)
+
+
+def ensure_company_notes_column(engine):
+    with engine.begin() as conn:
+        res = conn.exec_driver_sql(
+            "SHOW COLUMNS FROM company_contacts LIKE 'notes'"
+        ).fetchone()
+        if not res:
+            conn.exec_driver_sql("ALTER TABLE company_contacts ADD COLUMN notes TEXT")
+
+
+ensure_company_notes_column(engine)
 
 
 def get_or_create_property_id(db, prop_name: str) -> str:
@@ -1096,6 +1110,7 @@ def firm_detail(company: str):
                 "name": contact.contact_name or "",
                 "phone": contact.phone or "",
                 "email": contact.email or "",
+                "notes": contact.notes or "",
                 "properties": prop_list,
             }
         )
@@ -1136,14 +1151,28 @@ def firm_contact_add(company: str):
     company_name = " ".join((request.form.get("company_name") or company).split())
     if not company_name:
         return "Brak firmy.", 400
+    property_name = (request.form.get("property_name") or "").strip()
+    scope = (request.form.get("scope_custom") or request.form.get("scope") or "").strip()
+    if not property_name or not scope:
+        flash("Wybierz nieruchomość i zakres.", "error")
+        return redirect(url_for("firm_detail", company=company_name))
     contact = CompanyContact(
         company_name=company_name,
-        contact_name=(request.form.get("contact_name") or "").strip(),
         phone=(request.form.get("phone") or "").strip(),
         email=(request.form.get("email") or "").strip(),
+        notes=(request.form.get("notes") or "").strip(),
     )
     db.add(contact)
+    db.flush()
+    db.add(
+        CompanyContactAssignment(
+            contact_id=contact.id,
+            property_name=property_name,
+            scope=scope,
+        )
+    )
     db.commit()
+    flash("Dodano kontakt.", "success")
     return redirect(url_for("firm_detail", company=company_name))
 
 
@@ -1156,9 +1185,11 @@ def firm_contact_update(company: str, contact_id: int):
         return "Nie znaleziono kontaktu.", 404
     if normalize_company_key(contact.company_name) != normalize_company_key(company):
         return "Brak dostępu.", 403
-    contact.contact_name = (request.form.get("contact_name") or "").strip()
+    if "contact_name" in request.form:
+        contact.contact_name = (request.form.get("contact_name") or "").strip()
     contact.phone = (request.form.get("phone") or "").strip()
     contact.email = (request.form.get("email") or "").strip()
+    contact.notes = (request.form.get("notes") or "").strip()
     db.commit()
     return redirect(url_for("firm_detail", company=contact.company_name))
 
@@ -1189,8 +1220,9 @@ def firm_assignment_add(company: str, contact_id: int):
         return "Brak dostępu.", 403
     property_name = (request.form.get("property_name") or "").strip()
     scope = (request.form.get("scope_custom") or request.form.get("scope") or "").strip()
-    if not property_name:
-        return "Brak nieruchomości.", 400
+    if not property_name or not scope:
+        flash("Wybierz nieruchomość i zakres.", "error")
+        return redirect(url_for("firm_detail", company=contact.company_name))
     existing = (
         db.query(CompanyContactAssignment)
         .filter_by(contact_id=contact.id, property_name=property_name, scope=scope)
