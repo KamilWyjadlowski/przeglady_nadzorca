@@ -15,14 +15,8 @@
         </div>
         <div class="user-panel">
           <a class="user-name user-link" href="{{ url_for('profile') }}">
-            Zalogowany jako <strong>{{ current_user.username if current_user else "-" }}</strong>
+            Zalogowany jako: <strong>{{ current_user.username if current_user else "-" }}</strong>
           </a>
-                    <a href="{{ url_for('calendar_view') }}" class="btn">Kalendarz</a>
-          {% if current_user and current_user.role == "admin" %}
-          <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
-          <a href="{{ url_for('admin_users') }}" class="btn">Użytkownicy</a>
-          <a href="{{ url_for('admin_notifications') }}" class="btn">Powiadomienia</a>
-          {% endif %}
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-ghost">Wyloguj</button>
@@ -44,22 +38,44 @@
           </div>
           <div class="property-grid">
             {% for card in property_cards %}
-            <a href="{{ card.link }}" class="property-card {% if card.active %}is-active{% endif %}">
-              <div class="property-card-header">
-                <div class="property-card-name">{{ card.name | format_property }}</div>
+            <div class="property-card {% if card.active %}is-active{% endif %}">
+              <a
+                href="{{ clear_property_url if card.active else card.link }}"
+                class="property-card-link"
+                aria-label="Filtruj: {{ card.name | format_property }}"
+              ></a>
+              <div class="property-card-content">
+                <div class="property-card-header">
+                  <div class="property-card-name">{{ card.name | format_property }}</div>
+                </div>
+                {% if card.segment %}
+                <div class="property-card-segment">{{ card.segment }}</div>
+                {% endif %}
+                <div class="property-card-counts">
+                  <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
+                  <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
+                  <div class="pill-with-icon">
+                    <span class="pill pill-current">{{ card.current }} aktualne</span>
+                    <a
+                      class="property-calendar-link"
+                      href="{{ url_for('calendar_view', property=card.name) }}"
+                      aria-label="Kalendarz: {{ card.name | format_property }}"
+                      title="Kalendarz"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M7 3a1 1 0 0 1 1 1v1h8V4a1 1 0 1 1 2 0v1h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2V4a1 1 0 1 1 2 0v1zm13 7H4v10h16V10z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+                {% if card.next_due_label %}
+                <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
+                {% endif %}
               </div>
-              {% if card.segment %}
-              <div class="property-card-segment">{{ card.segment }}</div>
-              {% endif %}
-              <div class="property-card-counts">
-                <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
-                <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
-                <span class="pill pill-current">{{ card.current }} aktualne</span>
-              </div>
-              {% if card.next_due_label %}
-              <div class="property-card-next">Najbliższy termin: {{ card.next_due_label }}</div>
-              {% endif %}
-            </a>
+            </div>
             {% endfor %}
             {% if not property_cards %}
             <div class="property-card empty-card">Brak nieruchomości do wyświetlenia</div>
