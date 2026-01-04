@@ -86,7 +86,7 @@
         </div>
 
         <div class="filters">
-          <div class="filter-field filter-field-search">
+          <div class="search-bar">
             <label class="sr-only" for="filterSearch">Szukaj</label>
             <input
               type="text"
@@ -95,12 +95,10 @@
               value="{{ request.args.get('q', '') }}"
               placeholder="Szukaj"
             />
-          </div>
-          <div class="filter-actions">
             <div class="filter-shell">
               <button
                 type="button"
-                class="btn btn-ghost filter-trigger"
+                class="filter-trigger"
                 id="filterTrigger"
                 aria-expanded="false"
                 aria-controls="filterPanel"
