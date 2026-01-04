@@ -22,9 +22,6 @@ from math import ceil
 from typing import List, Dict, Optional
 from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
-from openpyxl import Workbook
-from openpyxl.styles import Font
-from openpyxl.utils import get_column_letter
 from sqlalchemy import (
     create_engine,
     Column,
@@ -130,9 +127,7 @@ class InspectionOccurrence(Base):
     inspection_id = Column(Integer, ForeignKey("inspections.id"), nullable=False)
     due_date = Column(Date, nullable=False)
     done_date = Column(Date)
-    status = Column(
-        String(32), nullable=False, default="planned"
-    )
+    status = Column(String(32), nullable=False, default="planned")
     note = Column(Text)
     performed_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
@@ -917,8 +912,7 @@ def index():
         **{
             k: v
             for k, v in args_no_page.items()
-            if k
-            not in {"nieruchomosc", "nazwa", "status", "uwagi", "segment", "sort"}
+            if k not in {"nieruchomosc", "nazwa", "status", "uwagi", "segment", "sort"}
         },
     )
 
@@ -1003,7 +997,9 @@ def export_csv():
     return Response(
         csv_data,
         mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename={export_filename('csv')}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={export_filename('csv')}"
+        },
     )
 
 
@@ -1089,7 +1085,9 @@ def export_xlsx():
     return Response(
         output.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={export_filename('xlsx')}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={export_filename('xlsx')}"
+        },
     )
 
 
@@ -1695,19 +1693,29 @@ def calendar_view():
         else:
             year = today_year
 
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+    first_week_start = year_start - timedelta(days=year_start.weekday())
     weeks = []
-    for w in range(1, 54):
-        try:
-            d = date.fromisocalendar(year, w, 1)
-            weeks.append(w)
-        except ValueError:
-            continue
+    week_start = first_week_start
+    week_index = 1
+    while week_start <= year_end:
+        in_year_start = max(week_start, year_start)
+        weeks.append(
+            {
+                "key": week_start.isoformat(),
+                "label": week_index,
+                "anchor": in_year_start,
+            }
+        )
+        week_start += timedelta(days=7)
+        week_index += 1
 
     month_headers = []
     current_label = None
     current_span = 0
     for w in weeks:
-        label = date.fromisocalendar(year, w, 1).strftime("%b")
+        label = w["anchor"].strftime("%b")
         if label != current_label:
             if current_label is not None:
                 month_headers.append({"label": current_label, "span": current_span})
@@ -1727,36 +1735,36 @@ def calendar_view():
         }
         if not user_can_access(g.user, ins_dict, prop_access):
             continue
-        if occ.status == "planned" and occ.due_date:
-            iso_year, iso_week, _ = occ.due_date.isocalendar()
-            if iso_year == year:
-                events.append(
-                    {
-                        "week": iso_week,
-                        "year": iso_year,
-                        "date": occ.due_date,
-                        "name": ins.nazwa,
-                        "property": ins.nieruchomosc,
-                        "status": occ.status,
-                        "occ_id": occ.id,
-                        "inspection_id": ins.id,
-                    }
-                )
-        if occ.status == "done" and occ.done_date:
-            iso_year, iso_week, _ = occ.done_date.isocalendar()
-            if iso_year == year:
-                events.append(
-                    {
-                        "week": iso_week,
-                        "year": iso_year,
-                        "date": occ.done_date,
-                        "name": ins.nazwa,
-                        "property": ins.nieruchomosc,
-                        "status": "done",
-                        "occ_id": occ.id,
-                        "inspection_id": ins.id,
-                    }
-                )
+        if occ.status == "planned" and occ.due_date and occ.due_date.year == year:
+            week_key = (
+                occ.due_date - timedelta(days=occ.due_date.weekday())
+            ).isoformat()
+            events.append(
+                {
+                    "week_key": week_key,
+                    "date": occ.due_date,
+                    "name": ins.nazwa,
+                    "property": ins.nieruchomosc,
+                    "status": occ.status,
+                    "occ_id": occ.id,
+                    "inspection_id": ins.id,
+                }
+            )
+        if occ.status == "done" and occ.done_date and occ.done_date.year == year:
+            week_key = (
+                occ.done_date - timedelta(days=occ.done_date.weekday())
+            ).isoformat()
+            events.append(
+                {
+                    "week_key": week_key,
+                    "date": occ.done_date,
+                    "name": ins.nazwa,
+                    "property": ins.nieruchomosc,
+                    "status": "done",
+                    "occ_id": occ.id,
+                    "inspection_id": ins.id,
+                }
+            )
 
     rows = {}
     today = date.today()
@@ -1773,7 +1781,7 @@ def calendar_view():
         if status != "done":
             if evt["date"] < today:
                 status = "overdue"
-        rows[key]["markers"][evt["week"]] = status
+        rows[key]["markers"][evt["week_key"]] = status
 
     rows_list = []
     for _, data in rows.items():
@@ -1934,7 +1942,9 @@ def admin_users():
                     if ok:
                         message = f"Wysłano testowy e-mail do {user.email}."
                     else:
-                        error = "Nie udało się wysłać maila (sprawdź konfigurację SMTP)."
+                        error = (
+                            "Nie udało się wysłać maila (sprawdź konfigurację SMTP)."
+                        )
 
     return render_template(
         "admin_users.html",

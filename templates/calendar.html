@@ -61,7 +61,7 @@
             <div class="timeline-label">Tydzień</div>
             <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
               {% for w in weeks %}
-              <div class="timeline-cell week-cell">{{ w }}</div>
+              <div class="timeline-cell week-cell">{{ w.label }}</div>
               {% endfor %}
             </div>
           </div>
@@ -80,11 +80,11 @@
               </div>
               <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
                 {% for w in weeks %}
-                  {% set st = row.markers.get(w) %}
+                  {% set st = row.markers.get(w.key) %}
                   {% if st %}
                     {% set cls = "marker-planned" %}
                     {% if st == "done" %}{% set cls = "marker-done" %}{% elif st == "overdue" %}{% set cls = "marker-overdue" %}{% endif %}
-                    <div class="timeline-cell marker {{ cls }}" title="Tydzień {{ w }} — {{ row.name }}"></div>
+                    <div class="timeline-cell marker {{ cls }}" title="Tydzień {{ w.label }} — {{ row.name }}"></div>
                   {% else %}
                     <div class="timeline-cell"></div>
                   {% endif %}
