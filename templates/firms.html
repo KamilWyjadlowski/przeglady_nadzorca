@@ -25,6 +25,16 @@
       <div class="app-nav">
         <a class="app-nav-link" href="{{ url_for('index') }}">Przeglądy</a>
         <a class="app-nav-link is-active" href="{{ url_for('firm_index') }}">Firmy</a>
+        {% if current_user and current_user.role == "admin" %}
+        <details class="app-nav-dropdown">
+          <summary class="app-nav-link">Admin</summary>
+          <div class="app-nav-menu">
+            <a class="app-nav-menu-link" href="{{ url_for('admin_properties') }}">Panel nieruchomości</a>
+            <a class="app-nav-menu-link" href="{{ url_for('admin_users') }}">Użytkownicy</a>
+            <a class="app-nav-menu-link" href="{{ url_for('admin_notifications') }}">Powiadomienia</a>
+          </div>
+        </details>
+        {% endif %}
       </div>
 
       <div class="page-header">

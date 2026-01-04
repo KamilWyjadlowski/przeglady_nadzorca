@@ -639,6 +639,56 @@ table td:nth-child(11) {
   border: 1px solid #e2e8f0;
 }
 
+.app-nav-dropdown {
+  position: relative;
+}
+
+.app-nav-dropdown summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.app-nav-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-nav-dropdown summary.app-nav-link {
+  display: inline-flex;
+}
+
+.app-nav-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+}
+
+.app-nav-dropdown:not([open]) .app-nav-menu {
+  display: none;
+}
+
+.app-nav-menu-link {
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: #0f172a;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-nav-menu-link:hover {
+  background: #f1f5f9;
+}
+
 .app-nav-link:hover {
   background: #e2e8f0;
 }
