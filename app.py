@@ -1088,7 +1088,7 @@ def firm_detail(company: str):
         prop_list = []
         for prop, items in prop_map.items():
             scope_list = sorted({i["scope"] for i in items if i["scope"]})
-            prop_list.append({"name": prop, "items": items, "scopes": scope_list})
+            prop_list.append({"name": prop, "assignments": items, "scopes": scope_list})
         prop_list.sort(key=lambda p: p["name"].lower())
         contacts_data.append(
             {

@@ -120,8 +120,8 @@
                 </a>
               </div>
               <div class="firm-tags">
-                {% if prop.items %}
-                  {% for item in prop.items %}
+                {% if prop.assignments %}
+                  {% for item in prop.assignments %}
                   <form
                     method="POST"
                     action="{{ url_for('firm_assignment_delete', company=firm.name, contact_id=contact.id, assignment_id=item.id) }}"
