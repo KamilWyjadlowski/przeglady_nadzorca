@@ -1544,7 +1544,7 @@ def calendar_view():
             property_name=None,
             year=date.today().year,
             weeks=None,
-            months=None,
+            month_headers=None,
             rows=None,
             years=None,
         )
@@ -1578,14 +1578,27 @@ def calendar_view():
             year = today_year
 
     weeks = []
-    months = []
     for w in range(1, 54):
         try:
             d = date.fromisocalendar(year, w, 1)
             weeks.append(w)
-            months.append(d.strftime("%b"))
         except ValueError:
             continue
+
+    month_headers = []
+    current_label = None
+    current_span = 0
+    for w in weeks:
+        label = date.fromisocalendar(year, w, 1).strftime("%b")
+        if label != current_label:
+            if current_label is not None:
+                month_headers.append({"label": current_label, "span": current_span})
+            current_label = label
+            current_span = 1
+        else:
+            current_span += 1
+    if current_label is not None:
+        month_headers.append({"label": current_label, "span": current_span})
 
     events = []
     for occ, ins in occurrences_all:
@@ -1608,6 +1621,7 @@ def calendar_view():
                         "property": ins.nieruchomosc,
                         "status": occ.status,
                         "occ_id": occ.id,
+                        "inspection_id": ins.id,
                     }
                 )
         if occ.status == "done" and occ.done_date:
@@ -1622,6 +1636,7 @@ def calendar_view():
                         "property": ins.nieruchomosc,
                         "status": "done",
                         "occ_id": occ.id,
+                        "inspection_id": ins.id,
                     }
                 )
 
@@ -1629,9 +1644,14 @@ def calendar_view():
     rows = {}
     today = date.today()
     for evt in events:
-        key = evt["name"]
+        key = evt["inspection_id"]
         if key not in rows:
-            rows[key] = {"full_name": evt["name"], "markers": {}}
+            rows[key] = {
+                "id": evt["inspection_id"],
+                "name": evt["name"],
+                "property": evt["property"],
+                "markers": {},
+            }
         status = evt["status"]
         if status != "done":
             if evt["date"] < today:
@@ -1639,8 +1659,15 @@ def calendar_view():
         rows[key]["markers"][evt["week"]] = status
 
     rows_list = []
-    for name, data in rows.items():
-        rows_list.append({"name": name, "markers": data["markers"]})
+    for _, data in rows.items():
+        rows_list.append(
+            {
+                "id": data["id"],
+                "name": data["name"],
+                "property": data["property"],
+                "markers": data["markers"],
+            }
+        )
     rows_list.sort(key=lambda r: r["name"].lower())
 
     return render_template(
@@ -1649,7 +1676,7 @@ def calendar_view():
         property_name=property_name,
         year=year,
         weeks=weeks,
-        months=months,
+        month_headers=month_headers,
         rows=rows_list,
         years=sorted(available_years) if available_years else [year],
     )

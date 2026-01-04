@@ -52,8 +52,8 @@
           <div class="timeline-row timeline-header">
             <div class="timeline-label">Miesiąc</div>
             <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
-              {% for m in months %}
-              <div class="timeline-cell month-cell">{{ m }}</div>
+              {% for m in month_headers %}
+              <div class="timeline-cell month-cell" style="grid-column: span {{ m.span }};">{{ m.label }}</div>
               {% endfor %}
             </div>
           </div>
@@ -70,7 +70,13 @@
             {% for row in rows %}
             <div class="timeline-row">
               <div class="timeline-label">
-                <span class="ellipsis" title="{{ row.name }}">{{ row.name }}</span>
+                <a
+                  href="{{ url_for('history', inspection_id=row.id) }}"
+                  class="timeline-link"
+                  title="{{ row.name }} — {{ row.property }}"
+                >
+                  <span class="ellipsis">{{ row.name }}</span>
+                </a>
               </div>
               <div class="timeline-weeks" style="grid-template-columns: repeat({{ weeks|length }}, 1fr);">
                 {% for w in weeks %}

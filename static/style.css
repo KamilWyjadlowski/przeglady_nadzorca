@@ -857,6 +857,10 @@ textarea {
   border-bottom: 1px solid #eee;
 }
 
+.timeline-row:not(.timeline-header):hover {
+  background: #f8fafc;
+}
+
 .timeline-row:last-child {
   border-bottom: none;
 }
@@ -869,6 +873,19 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.timeline-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-block;
+  max-width: 160px;
+}
+
+.timeline-link:hover {
+  text-decoration: underline;
+  text-decoration-color: #94a3b8;
+  text-underline-offset: 3px;
 }
 
 .timeline-weeks {
