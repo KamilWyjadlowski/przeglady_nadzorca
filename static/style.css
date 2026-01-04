@@ -1,5 +1,11 @@
 @import url("https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css");
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(145deg, #eef2f7, #f8fafc);
@@ -7,6 +13,10 @@ body {
   padding: 16px;
   font-size: 16px;
   color: #1f2937;
+}
+
+body.page-login {
+  padding: 0;
 }
 
 .container {
@@ -38,7 +48,7 @@ body {
   border-radius: 0;
   padding: 0;
   margin: 0;
-  min-height: calc(100vh - 32px);
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
