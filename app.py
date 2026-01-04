@@ -134,6 +134,24 @@ class InspectionOccurrence(Base):
     inspection = relationship("Inspection", backref="occurrences")
 
 
+class CompanyContact(Base):
+    __tablename__ = "company_contacts"
+    id = Column(Integer, primary_key=True)
+    company_name = Column(String(255), nullable=False)
+    contact_name = Column(String(255))
+    phone = Column(String(64))
+    email = Column(String(255))
+
+
+class CompanyContactAssignment(Base):
+    __tablename__ = "company_contact_assignments"
+    id = Column(Integer, primary_key=True)
+    contact_id = Column(Integer, ForeignKey("company_contacts.id"), nullable=False)
+    property_name = Column(String(255), nullable=False)
+    scope = Column(String(255))
+    contact = relationship("CompanyContact", backref="assignments")
+
+
 def parse_date(s: str) -> date:
     s = s.strip()
 
@@ -316,6 +334,37 @@ def ensure_users_email_column(engine):
 
 
 ensure_users_email_column(engine)
+
+
+def ensure_company_tables(engine):
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS company_contacts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_name VARCHAR(255) NOT NULL,
+                contact_name VARCHAR(255),
+                phone VARCHAR(64),
+                email VARCHAR(255)
+            ) CHARACTER SET utf8mb4;
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS company_contact_assignments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                contact_id INT NOT NULL,
+                property_name VARCHAR(255) NOT NULL,
+                scope VARCHAR(255),
+                CONSTRAINT fk_company_contact
+                    FOREIGN KEY (contact_id) REFERENCES company_contacts(id)
+                    ON DELETE CASCADE
+            ) CHARACTER SET utf8mb4;
+            """
+        )
+
+
+ensure_company_tables(engine)
 
 
 def get_or_create_property_id(db, prop_name: str) -> str:
@@ -955,8 +1004,10 @@ def index():
 @login_required
 def firm_index():
     db = get_db()
+    ensure_company_seed(db)
     inspections = load_inspections_for_user(db, g.user)
-    companies, _ = build_company_directory(inspections)
+    allowed_properties = {i.get("nieruchomosc") for i in inspections if i.get("nieruchomosc")}
+    companies, _ = build_company_directory(db, allowed_properties=allowed_properties)
 
     q = request.args.get("q", "").strip()
     selected_property = request.args.get("property", "").strip()
@@ -999,13 +1050,185 @@ def firm_index():
 @login_required
 def firm_detail(company: str):
     db = get_db()
+    ensure_company_seed(db)
     inspections = load_inspections_for_user(db, g.user)
-    _, directory = build_company_directory(inspections)
+    allowed_properties = {i.get("nieruchomosc") for i in inspections if i.get("nieruchomosc")}
     key = normalize_company_key(company)
-    firm = directory.get(key)
-    if not firm:
+    all_contacts = db.query(CompanyContact).all()
+    contacts = [c for c in all_contacts if normalize_company_key(c.company_name) == key]
+    if not contacts:
         return "Nie znaleziono firmy.", 404
-    return render_template("firm_detail.html", firm=firm)
+
+    contact_ids = [c.id for c in contacts]
+    assignments = (
+        db.query(CompanyContactAssignment)
+        .filter(CompanyContactAssignment.contact_id.in_(contact_ids))
+        .all()
+    )
+    assignments_map = {}
+    for assignment in assignments:
+        assignments_map.setdefault(assignment.contact_id, []).append(assignment)
+
+    contacts_data = []
+    properties = set()
+    scopes = set()
+    for contact in contacts:
+        prop_map = {}
+        for assignment in assignments_map.get(contact.id, []):
+            if allowed_properties is not None and assignment.property_name not in allowed_properties:
+                continue
+            prop_map.setdefault(assignment.property_name, []).append(
+                {"id": assignment.id, "scope": assignment.scope or ""}
+            )
+            properties.add(assignment.property_name)
+            if assignment.scope:
+                scopes.add(assignment.scope)
+        if allowed_properties is not None and not prop_map:
+            continue
+        prop_list = []
+        for prop, items in prop_map.items():
+            scope_list = sorted({i["scope"] for i in items if i["scope"]})
+            prop_list.append({"name": prop, "items": items, "scopes": scope_list})
+        prop_list.sort(key=lambda p: p["name"].lower())
+        contacts_data.append(
+            {
+                "id": contact.id,
+                "name": contact.contact_name or "",
+                "phone": contact.phone or "",
+                "email": contact.email or "",
+                "properties": prop_list,
+            }
+        )
+
+    if not contacts_data:
+        return "Nie znaleziono firmy.", 404
+
+    firm_data = {
+        "key": key,
+        "name": contacts[0].company_name,
+        "contacts": contacts_data,
+        "contact_count": len(contacts_data),
+        "property_count": len(properties),
+        "scope_count": len(scopes),
+    }
+
+    used_properties = get_unique(inspections, "nieruchomosc")
+    used_scopes = get_unique(inspections, "nazwa")
+    edit_contact_id = request.args.get("edit")
+    try:
+        edit_contact_id = int(edit_contact_id) if edit_contact_id else None
+    except ValueError:
+        edit_contact_id = None
+
+    return render_template(
+        "firm_detail.html",
+        firm=firm_data,
+        used_properties=used_properties,
+        used_scopes=used_scopes,
+        edit_contact_id=edit_contact_id,
+    )
+
+
+@app.route("/firms/<path:company>/contacts/add", methods=["POST"])
+@login_required
+def firm_contact_add(company: str):
+    db = get_db()
+    company_name = " ".join((request.form.get("company_name") or company).split())
+    if not company_name:
+        return "Brak firmy.", 400
+    contact = CompanyContact(
+        company_name=company_name,
+        contact_name=(request.form.get("contact_name") or "").strip(),
+        phone=(request.form.get("phone") or "").strip(),
+        email=(request.form.get("email") or "").strip(),
+    )
+    db.add(contact)
+    db.commit()
+    return redirect(url_for("firm_detail", company=company_name))
+
+
+@app.route("/firms/<path:company>/contacts/<int:contact_id>/update", methods=["POST"])
+@login_required
+def firm_contact_update(company: str, contact_id: int):
+    db = get_db()
+    contact = db.query(CompanyContact).filter_by(id=contact_id).first()
+    if not contact:
+        return "Nie znaleziono kontaktu.", 404
+    if normalize_company_key(contact.company_name) != normalize_company_key(company):
+        return "Brak dostępu.", 403
+    contact.contact_name = (request.form.get("contact_name") or "").strip()
+    contact.phone = (request.form.get("phone") or "").strip()
+    contact.email = (request.form.get("email") or "").strip()
+    db.commit()
+    return redirect(url_for("firm_detail", company=contact.company_name))
+
+
+@app.route("/firms/<path:company>/contacts/<int:contact_id>/delete", methods=["POST"])
+@login_required
+def firm_contact_delete(company: str, contact_id: int):
+    db = get_db()
+    contact = db.query(CompanyContact).filter_by(id=contact_id).first()
+    if not contact:
+        return "Nie znaleziono kontaktu.", 404
+    if normalize_company_key(contact.company_name) != normalize_company_key(company):
+        return "Brak dostępu.", 403
+    company_name = contact.company_name
+    db.delete(contact)
+    db.commit()
+    return redirect(url_for("firm_detail", company=company_name))
+
+
+@app.route("/firms/<path:company>/contacts/<int:contact_id>/assignments/add", methods=["POST"])
+@login_required
+def firm_assignment_add(company: str, contact_id: int):
+    db = get_db()
+    contact = db.query(CompanyContact).filter_by(id=contact_id).first()
+    if not contact:
+        return "Nie znaleziono kontaktu.", 404
+    if normalize_company_key(contact.company_name) != normalize_company_key(company):
+        return "Brak dostępu.", 403
+    property_name = (request.form.get("property_name") or "").strip()
+    scope = (request.form.get("scope_custom") or request.form.get("scope") or "").strip()
+    if not property_name:
+        return "Brak nieruchomości.", 400
+    existing = (
+        db.query(CompanyContactAssignment)
+        .filter_by(contact_id=contact.id, property_name=property_name, scope=scope)
+        .first()
+    )
+    if not existing:
+        db.add(
+            CompanyContactAssignment(
+                contact_id=contact.id,
+                property_name=property_name,
+                scope=scope,
+            )
+        )
+        db.commit()
+    return redirect(url_for("firm_detail", company=contact.company_name))
+
+
+@app.route(
+    "/firms/<path:company>/contacts/<int:contact_id>/assignments/<int:assignment_id>/delete",
+    methods=["POST"],
+)
+@login_required
+def firm_assignment_delete(company: str, contact_id: int, assignment_id: int):
+    db = get_db()
+    contact = db.query(CompanyContact).filter_by(id=contact_id).first()
+    if not contact:
+        return "Nie znaleziono kontaktu.", 404
+    if normalize_company_key(contact.company_name) != normalize_company_key(company):
+        return "Brak dostępu.", 403
+    assignment = (
+        db.query(CompanyContactAssignment)
+        .filter_by(id=assignment_id, contact_id=contact_id)
+        .first()
+    )
+    if assignment:
+        db.delete(assignment)
+        db.commit()
+    return redirect(url_for("firm_detail", company=contact.company_name))
 
 
 @app.route("/export")
@@ -1226,80 +1449,144 @@ def normalize_company_key(name: str) -> str:
     return " ".join((name or "").strip().split()).lower()
 
 
-def build_company_directory(inspections):
+def ensure_company_seed(db):
+    contacts = db.query(CompanyContact).all()
+    contact_map = {}
+    existing_companies = set()
+    for contact in contacts:
+        key = (
+            normalize_company_key(contact.company_name),
+            (contact.phone or "").strip().lower(),
+            (contact.email or "").strip().lower(),
+        )
+        contact_map[key] = contact
+        existing_companies.add(normalize_company_key(contact.company_name))
+
+    assignment_keys = {
+        (a.contact_id, a.property_name, a.scope or "")
+        for a in db.query(CompanyContactAssignment).all()
+    }
+
+    changed = False
+    for ins in db.query(Inspection).all():
+        company = " ".join((ins.firma or "").strip().split())
+        if not company:
+            continue
+        company_key = normalize_company_key(company)
+        if company_key in existing_companies:
+            continue
+        phone = " ".join((ins.telefon or "").strip().split())
+        email = (ins.email or "").strip()
+        key = (company_key, phone.lower(), email.lower())
+        contact = contact_map.get(key)
+        if not contact:
+            contact = CompanyContact(
+                company_name=company,
+                contact_name="",
+                phone=phone,
+                email=email,
+            )
+            db.add(contact)
+            db.flush()
+            contact_map[key] = contact
+            changed = True
+
+        prop = " ".join((ins.nieruchomosc or "").strip().split())
+        scope = " ".join((ins.nazwa or "").strip().split())
+        if prop:
+            akey = (contact.id, prop, scope)
+            if akey not in assignment_keys:
+                db.add(
+                    CompanyContactAssignment(
+                        contact_id=contact.id,
+                        property_name=prop,
+                        scope=scope,
+                    )
+                )
+                assignment_keys.add(akey)
+                changed = True
+
+    if changed:
+        db.commit()
+
+
+def build_company_directory(db, allowed_properties=None):
+    contacts = db.query(CompanyContact).all()
+    assignments = db.query(CompanyContactAssignment).all()
+    contact_props = {}
+    for assignment in assignments:
+        if allowed_properties is not None and assignment.property_name not in allowed_properties:
+            continue
+        contact_props.setdefault(assignment.contact_id, []).append(assignment)
+
     companies = {}
-    for ins in inspections:
-        company = " ".join((ins.get("firma") or "").strip().split())
+    for contact in contacts:
+        company = " ".join((contact.company_name or "").strip().split())
         if not company:
             continue
         key = normalize_company_key(company)
-        entry = companies.setdefault(key, {"name": company, "contacts": {}})
-        phone = " ".join((ins.get("telefon") or "").strip().split())
-        email = (ins.get("email") or "").strip()
-        contact_key = f"{phone.lower()}|{email.lower()}"
-        contact = entry["contacts"].setdefault(
-            contact_key,
-            {
-                "phone": phone,
-                "email": email,
-                "properties": {},
-            },
-        )
-        prop = " ".join((ins.get("nieruchomosc") or "").strip().split())
-        scope = " ".join((ins.get("nazwa") or "").strip().split())
-        if prop:
-            scopes = contact["properties"].setdefault(prop, set())
+        entry = companies.setdefault(key, {"name": company, "contacts": []})
+        assignments_list = contact_props.get(contact.id, [])
+        properties = {}
+        for assignment in assignments_list:
+            prop = assignment.property_name
+            scope = assignment.scope or ""
+            scopes = properties.setdefault(prop, set())
             if scope:
                 scopes.add(scope)
+        if allowed_properties is not None and not properties:
+            continue
+        prop_list = [
+            {"name": prop, "scopes": sorted(scope_set)}
+            for prop, scope_set in properties.items()
+        ]
+        prop_list.sort(key=lambda p: p["name"].lower())
+        entry["contacts"].append(
+            {
+                "id": contact.id,
+                "name": contact.contact_name or "",
+                "phone": contact.phone or "",
+                "email": contact.email or "",
+                "properties": prop_list,
+            }
+        )
 
     directory = {}
     for key, entry in companies.items():
-        contacts = []
+        contacts_list = entry["contacts"]
+        contacts_list.sort(key=lambda c: (c["email"] or "", c["phone"] or ""))
         properties = set()
         scopes = set()
         emails = set()
         phones = set()
-        for contact in entry["contacts"].values():
+        for contact in contacts_list:
             if contact["email"]:
                 emails.add(contact["email"])
             if contact["phone"]:
                 phones.add(contact["phone"])
-            prop_list = []
-            for prop, scope_set in contact["properties"].items():
-                prop_list.append(
-                    {
-                        "name": prop,
-                        "scopes": sorted(scope_set),
-                    }
-                )
-                properties.add(prop)
-                scopes.update(scope_set)
-            prop_list.sort(key=lambda p: p["name"].lower())
-            contacts.append(
-                {
-                    "phone": contact["phone"],
-                    "email": contact["email"],
-                    "properties": prop_list,
-                }
-            )
-        contacts.sort(key=lambda c: (c["email"] or "", c["phone"] or ""))
+            for prop in contact["properties"]:
+                properties.add(prop["name"])
+                scopes.update(prop["scopes"])
         scope_list = sorted(scopes)
         scope_summary = ", ".join(scope_list[:3])
         if len(scope_list) > 3:
             scope_summary = f"{scope_summary}..."
+        email_list = sorted(emails)
+        phone_list = sorted(phones)
         directory[key] = {
             "key": key,
             "name": entry["name"],
-            "contacts": contacts,
-            "contact_count": len(contacts),
+            "contacts": contacts_list,
+            "contact_count": len(contacts_list),
             "property_count": len(properties),
+            "scope_count": len(scope_list),
             "properties": sorted(properties),
             "scopes": scope_list,
             "scope_summary": scope_summary,
-            "emails": sorted(emails),
-            "phones": sorted(phones),
-            "email_preview": sorted(emails)[:2],
-            "phone_preview": sorted(phones)[:2],
+            "emails": email_list,
+            "phones": phone_list,
+            "primary_email": email_list[0] if email_list else "",
+            "primary_phone": phone_list[0] if phone_list else "",
         }
     companies_list = sorted(directory.values(), key=lambda c: c["name"].lower())
     return companies_list, directory

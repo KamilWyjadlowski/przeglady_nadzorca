@@ -37,21 +37,65 @@
         {% endif %}
       </div>
 
+      <div class="firm-detail-top">
+        <a href="{{ url_for('firm_index') }}" class="btn btn-ghost">← Lista firm</a>
+      </div>
+
       <div class="firm-detail-header">
         <div>
           <h2>{{ firm.name }}</h2>
           <div class="firm-summary">
-            {{ firm.contact_count }} kontaktów - {{ firm.property_count }} nieruchomości
+            {{ firm.contact_count }} kontaktów - {{ firm.property_count }} nieruchomości - {{ firm.scope_count }} zakresów
           </div>
         </div>
-        <a href="{{ url_for('firm_index') }}" class="btn btn-ghost">← Lista firm</a>
       </div>
 
       <div class="firm-contact-list">
         {% for contact in firm.contacts %}
         <div class="firm-contact-card">
-          <div class="firm-contact-title">Kontakt #{{ loop.index }}</div>
+          <div class="firm-contact-header">
+            <div class="firm-contact-title">Kontakt #{{ loop.index }}</div>
+            <div class="firm-contact-actions">
+              {% if edit_contact_id == contact.id %}
+              <form method="POST" action="{{ url_for('firm_contact_delete', company=firm.name, contact_id=contact.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-danger">Usuń</button>
+              </form>
+              <a class="btn btn-ghost" href="{{ url_for('firm_detail', company=firm.name) }}">Anuluj</a>
+              {% else %}
+              <a class="btn btn-ghost" href="{{ url_for('firm_detail', company=firm.name, edit=contact.id) }}">Edytuj</a>
+              <form method="POST" action="{{ url_for('firm_contact_delete', company=firm.name, contact_id=contact.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-danger">Usuń</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if edit_contact_id == contact.id %}
+          <form method="POST" action="{{ url_for('firm_contact_update', company=firm.name, contact_id=contact.id) }}" class="firm-contact-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="firm-field">
+              <label>Imię i nazwisko</label>
+              <input type="text" name="contact_name" value="{{ contact.name }}">
+            </div>
+            <div class="firm-field">
+              <label>Telefon</label>
+              <input type="text" name="phone" value="{{ contact.phone }}">
+            </div>
+            <div class="firm-field">
+              <label>Email</label>
+              <input type="email" name="email" value="{{ contact.email }}">
+            </div>
+            <div class="firm-form-actions">
+              <button type="submit" class="btn btn-primary">Zapisz</button>
+            </div>
+          </form>
+          {% else %}
           <div class="firm-contact-lines">
+            <div>
+              Osoba: <span class="firm-contact-text">{{ contact.name or "-" }}</span>
+            </div>
             <div>
               Telefon: <span class="firm-contact-text">{{ contact.phone or "-" }}</span>
             </div>
@@ -64,31 +108,94 @@
               {% endif %}
             </div>
           </div>
+          {% endif %}
+
           <div class="firm-contact-properties">
+            {% if contact.properties %}
             {% for prop in contact.properties %}
             <div class="firm-property">
-              <a class="firm-property-link" href="{{ url_for('index', nieruchomosc=prop.name) }}">
-                {{ prop.name | format_property }}
-              </a>
-              {% if prop.scopes %}
-              <div class="firm-tags">
-                {% for scope in prop.scopes %}
-                <span class="firm-tag">{{ scope }}</span>
-                {% endfor %}
+              <div class="firm-property-head">
+                <a class="firm-property-link" href="{{ url_for('index', nieruchomosc=prop.name) }}">
+                  {{ prop.name | format_property }}
+                </a>
               </div>
-              {% else %}
               <div class="firm-tags">
-                <span class="firm-tag">Brak zakresu</span>
+                {% if prop.items %}
+                  {% for item in prop.items %}
+                  <form
+                    method="POST"
+                    action="{{ url_for('firm_assignment_delete', company=firm.name, contact_id=contact.id, assignment_id=item.id) }}"
+                    class="firm-tag-form"
+                  >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <span class="firm-tag">{{ item.scope or "Brak zakresu" }}</span>
+                    <button type="submit" class="firm-tag-remove" aria-label="Usuń przypisanie">x</button>
+                  </form>
+                  {% endfor %}
+                {% else %}
+                  <span class="firm-tag">Brak zakresu</span>
+                {% endif %}
               </div>
-              {% endif %}
             </div>
             {% endfor %}
+            {% else %}
+            <div class="empty-state">Brak przypisań do nieruchomości.</div>
+            {% endif %}
           </div>
+
+          <form method="POST" action="{{ url_for('firm_assignment_add', company=firm.name, contact_id=contact.id) }}" class="firm-assign-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="firm-field">
+              <label>Nieruchomość</label>
+              <select name="property_name" required>
+                <option value="">Wybierz</option>
+                {% for prop in used_properties %}
+                <option value="{{ prop }}">{{ prop | format_property }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="firm-field">
+              <label>Zakres</label>
+              <select name="scope">
+                <option value="">Wybierz</option>
+                {% for scope in used_scopes %}
+                <option value="{{ scope }}">{{ scope }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" name="scope_custom" placeholder="Inny zakres (opcjonalnie)">
+            </div>
+            <div class="firm-form-actions">
+              <button type="submit" class="btn btn-primary">Dodaj przypisanie</button>
+            </div>
+          </form>
         </div>
         {% endfor %}
         {% if not firm.contacts %}
         <div class="empty-state">Brak kontaktów dla tej firmy.</div>
         {% endif %}
+      </div>
+
+      <div class="firm-add-card">
+        <h3>Dodaj kontakt</h3>
+        <form method="POST" action="{{ url_for('firm_contact_add', company=firm.name) }}" class="firm-contact-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="company_name" value="{{ firm.name }}">
+          <div class="firm-field">
+            <label>Imię i nazwisko</label>
+            <input type="text" name="contact_name" placeholder="np. Anna Kowalska">
+          </div>
+          <div class="firm-field">
+            <label>Telefon</label>
+            <input type="text" name="phone" placeholder="+48 600 000 000">
+          </div>
+          <div class="firm-field">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="kontakt@firma.pl">
+          </div>
+          <div class="firm-form-actions">
+            <button type="submit" class="btn btn-primary">Dodaj kontakt</button>
+          </div>
+        </form>
       </div>
     </div>
   </body>

@@ -74,22 +74,34 @@
 
       <div class="firm-list">
         {% for firm in firms %}
-        <div class="firm-row">
-          <div class="firm-main">
-            <a class="firm-name-link" href="{{ url_for('firm_detail', company=firm.name) }}">{{ firm.name }}</a>
-            <div class="firm-contacts">
-              {% for email in firm.email_preview %}
-              <a class="firm-contact-link" href="mailto:{{ email }}">{{ email }}</a>
-              {% endfor %}
-              {% for phone in firm.phone_preview %}
-              <span class="firm-contact-text">{{ phone }}</span>
-              {% endfor %}
+        <div
+          class="firm-row"
+          data-href="{{ url_for('firm_detail', company=firm.name) }}"
+          role="link"
+          tabindex="0"
+          aria-label="Firma {{ firm.name }}"
+        >
+          <div class="firm-row-content">
+            <div class="firm-row-left">
+              <div class="firm-row-name">{{ firm.name }}</div>
             </div>
-          </div>
-          <div class="firm-meta">
-            <div>{{ firm.contact_count }} kontaktów</div>
-            <div>{{ firm.property_count }} nieruchomości</div>
-            <div class="firm-scope">{{ firm.scope_summary or "-" }}</div>
+            <div class="firm-row-right">
+              <div class="firm-row-contact">
+                {% if firm.primary_email %}
+                <a class="firm-inline-link" href="mailto:{{ firm.primary_email }}">{{ firm.primary_email }}</a>
+                {% elif firm.primary_phone %}
+                <span>{{ firm.primary_phone }}</span>
+                {% else %}
+                <span class="firm-contact-muted">Brak kontaktu</span>
+                {% endif %}
+              </div>
+              <div class="firm-row-stats">
+                <span>{{ firm.contact_count }} kontaktów</span>
+                <span>{{ firm.property_count }} nieruchomości</span>
+                <span>{{ firm.scope_count }} zakresów</span>
+              </div>
+            </div>
+            <div class="firm-row-chevron">&gt;</div>
           </div>
         </div>
         {% endfor %}
@@ -97,6 +109,22 @@
         <div class="empty-state">Brak firm do wyświetlenia.</div>
         {% endif %}
       </div>
+      <script>
+        document.querySelectorAll(".firm-row").forEach((row) => {
+          row.addEventListener("click", (event) => {
+            if (event.target.closest("a")) {
+              return;
+            }
+            window.location = row.dataset.href;
+          });
+          row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              window.location = row.dataset.href;
+            }
+          });
+        });
+      </script>
     </div>
   </body>
 </html>
