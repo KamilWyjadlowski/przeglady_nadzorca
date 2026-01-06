@@ -93,6 +93,7 @@
     <option value="Hurt" {% if form.segment == "Hurt" %}selected{% endif %}>Hurt</option>
     <option value="Pozostałe" {% if form.segment == "Pozostałe" %}selected{% endif %}>Pozostałe</option>
   </select>
+  <input type="hidden" id="segment-hidden" value="{{ form.segment }}">
 
   {% if errors.segment %}
   <div class="error">{{ errors.segment }}</div>
@@ -255,6 +256,9 @@
     <script type="application/json" id="companyContactsData">
       {{ company_contacts | tojson | safe }}
     </script>
+    <script type="application/json" id="propertySegmentsData">
+      {{ property_segments | tojson | safe }}
+    </script>
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
@@ -300,6 +304,55 @@
         if (firmaInput) {
           firmaInput.addEventListener("change", autofill);
           firmaInput.addEventListener("blur", autofill);
+        }
+
+        const segmentData = document.getElementById("propertySegmentsData");
+        const propertyInput = document.getElementById("nieruchomosc");
+        const segmentSelect = document.getElementById("segment");
+        const segmentHidden = document.getElementById("segment-hidden");
+        let propertySegments = {};
+
+        try {
+          propertySegments = JSON.parse(segmentData.textContent || "{}");
+        } catch {}
+
+        function normalizeKey(value) {
+          return value.trim().toLowerCase().replace(/\s+/g, " ");
+        }
+
+        function lockSegment(value) {
+          if (!segmentSelect || !segmentHidden) return;
+          segmentSelect.value = value;
+          segmentSelect.disabled = true;
+          segmentHidden.name = "segment";
+          segmentHidden.value = value;
+        }
+
+        function unlockSegment() {
+          if (!segmentSelect || !segmentHidden) return;
+          segmentSelect.disabled = false;
+          segmentHidden.name = "";
+          if (!segmentSelect.value) {
+            segmentHidden.value = "";
+          }
+        }
+
+        function applySegmentFromProperty() {
+          if (!propertyInput || !segmentSelect || !segmentHidden) return;
+          const key = normalizeKey(propertyInput.value || "");
+          const seg = propertySegments[key] || "";
+          if (seg) {
+            lockSegment(seg);
+          } else {
+            unlockSegment();
+          }
+        }
+
+        if (propertyInput) {
+          propertyInput.addEventListener("change", applySegmentFromProperty);
+          propertyInput.addEventListener("blur", applySegmentFromProperty);
+          propertyInput.addEventListener("input", applySegmentFromProperty);
+          applySegmentFromProperty();
         }
       });
 

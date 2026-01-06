@@ -1742,6 +1742,32 @@ def add():
     )
     prop_access_map = get_property_access_map(db)
     prop_segments = get_property_segment_map(db)
+    prop_segments_norm = {
+        normalize_property_name(name).lower(): seg
+        for name, seg in prop_segments.items()
+        if seg
+    }
+    if request.method == "POST":
+        form = extract_form()
+        prop_key = normalize_property_name(form["nieruchomosc"]).lower()
+        seg_from_prop = prop_segments_norm.get(prop_key, "")
+        if seg_from_prop:
+            form["segment"] = seg_from_prop
+    else:
+        form = {
+            "nazwa": "",
+            "nieruchomosc": "",
+            "ostatnia_data": "",
+            "czestotliwosc_miesiace": "",
+            "opis": "",
+            "firma": "",
+            "telefon": "",
+            "email": "",
+            "segment": "",
+            "shared_with": [],
+            "owner": g.user["username"],
+            "property_shared_with": [],
+        }
     inspections = []
     for ins in db.query(Inspection).all():
         seg_val = prop_segments.get(ins.nieruchomosc) or ins.segment or ""
@@ -1759,24 +1785,6 @@ def add():
         }
         if user_can_access(g.user, ins_dict, prop_access_map):
             inspections.append(ins_dict)
-
-        if request.method == "POST":
-            form = extract_form()
-        else:
-            form = {
-                "nazwa": "",
-                "nieruchomosc": "",
-                "ostatnia_data": "",
-                "czestotliwosc_miesiace": "",
-                "opis": "",
-                "firma": "",
-                "telefon": "",
-                "email": "",
-                "segment": "",
-                "shared_with": [],
-                "owner": g.user["username"],
-                "property_shared_with": [],
-            }
 
     errors = validate_form(form) if request.method == "POST" else {}
 
@@ -1847,6 +1855,7 @@ def add():
         company_contacts=build_company_contacts(inspections),
         all_users=db.query(User).all(),
         property_access=prop_access_map,
+        property_segments=prop_segments_norm,
         return_to=return_to,
     )
 
@@ -1859,6 +1868,12 @@ def edit(idx: int):
         request.form.get("return_to") or request.args.get("return_to") or ""
     )
     prop_access = get_property_access_map(db)
+    prop_segments = get_property_segment_map(db)
+    prop_segments_norm = {
+        normalize_property_name(name).lower(): seg
+        for name, seg in prop_segments.items()
+        if seg
+    }
     ins_obj = db.query(Inspection).filter_by(id=idx).first()
     if not ins_obj:
         return "Nie znaleziono przeglądu.", 404
@@ -1890,6 +1905,10 @@ def edit(idx: int):
 
     if request.method == "POST":
         form = extract_form()
+        prop_key = normalize_property_name(form["nieruchomosc"]).lower()
+        seg_from_prop = prop_segments_norm.get(prop_key, "")
+        if seg_from_prop:
+            form["segment"] = seg_from_prop
         errors = validate_form(form)
 
         if not errors:
@@ -1958,6 +1977,8 @@ def edit(idx: int):
             return redirect(return_to or url_for("index"))
 
     else:
+        seg_key = normalize_property_name(ins_obj.nieruchomosc).lower()
+        seg_from_prop = prop_segments_norm.get(seg_key, "")
         form = {
             "nazwa": ins_obj.nazwa,
             "nieruchomosc": ins_obj.nieruchomosc,
@@ -1969,7 +1990,7 @@ def edit(idx: int):
             "firma": ins_obj.firma or "",
             "telefon": ins_obj.telefon or "",
             "email": ins_obj.email or "",
-            "segment": ins_obj.segment or "",
+            "segment": seg_from_prop or ins_obj.segment or "",
             "owner": ins_obj.owner,
             "shared_with": [],
             "property_shared_with": prop_access.get(ins_obj.nieruchomosc, []),
@@ -1987,6 +2008,7 @@ def edit(idx: int):
         company_contacts=build_company_contacts(accessible),
         all_users=db.query(User).all(),
         property_access=prop_access,
+        property_segments=prop_segments_norm,
         return_to=return_to,
         inspection_id=ins_obj.id,
     )

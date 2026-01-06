@@ -74,9 +74,6 @@
                 <div class="property-card-header">
                   <div class="property-card-name">{{ card.name | format_property }}</div>
                 </div>
-                {% if card.segment %}
-                <div class="property-card-segment">{{ card.segment }}</div>
-                {% endif %}
                 <div class="property-card-counts">
                 <a class="pill pill-overdue property-status-link" href="{{ card.overdue_link }}" title="Pokaż zaległe">
                   {{ card.overdue }} zaległe
@@ -332,7 +329,6 @@
             <th>Lp.</th>
             <th>Nieruchomość</th>
             <th>Nazwa</th>
-            <th>Segment</th>
             <th>Firma</th>
             <th>Kontakt</th>
             <th>Ostatnia data</th>
@@ -362,10 +358,6 @@
             <td>{{ loop.index }}</td>
             <td>{{ ins.nieruchomosc | format_property }}</td>
             <td>{{ ins.nazwa }}</td>
-
-
-            <td>{{ ins.segment or "-" }}</td>
-
             <td>{{ ins.firma or "Brak danych" }}</td>
 
             <td class="contact-cell">
