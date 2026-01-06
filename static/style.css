@@ -665,6 +665,17 @@ table td:nth-child(11) {
   border: 1px solid transparent;
 }
 
+.property-status-link {
+  position: relative;
+  z-index: 2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.property-status-link:hover {
+  filter: brightness(0.98);
+}
+
 .pill-overdue {
   background: #ffe5e9;
   color: #b00020;

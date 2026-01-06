@@ -870,6 +870,15 @@ def build_property_cards(inspections, args):
     current_property = current_properties[0] if len(current_properties) == 1 else ""
     base_args = args.to_dict(flat=False)
     base_args.pop("page", None)
+    base_args.pop("status", None)
+    base_args.pop("nieruchomosc", None)
+
+    def build_link(prop, status=None):
+        params = base_args.copy()
+        params["nieruchomosc"] = prop
+        if status:
+            params["status"] = status
+        return url_for("index", **params)
 
     cards_map: Dict[str, Dict] = {}
     for ins in inspections:
@@ -911,13 +920,14 @@ def build_property_cards(inspections, args):
     cards: List[Dict] = []
     for prop in sorted(cards_map.keys()):
         data = cards_map[prop]
-        params = base_args.copy()
-        params["nieruchomosc"] = prop
         next_label = data["next_due"].strftime("%d.%m.%Y") if data["next_due"] else ""
         cards.append(
             {
                 **data,
-                "link": url_for("index", **params),
+                "link": build_link(prop),
+                "overdue_link": build_link(prop, "Zaległy"),
+                "upcoming_link": build_link(prop, "Nadchodzące"),
+                "current_link": build_link(prop, "Aktualne"),
                 "active": current_property == prop,
                 "next_due_label": next_label,
             }

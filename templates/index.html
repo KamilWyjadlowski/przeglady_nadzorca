@@ -53,7 +53,9 @@
       {% endif %}
 
       <form method="GET" class="filters-form" id="filtersForm">
+        {% if active_segment %}
         <input type="hidden" name="segment" value="{{ active_segment }}">
+        {% endif %}
         <div class="properties-section">
           <div class="properties-head">
             <div class="properties-title-wrap">
@@ -64,7 +66,7 @@
             {% for card in property_cards %}
             <div class="property-card {% if card.active %}is-active{% endif %}">
               <a
-                href="{{ clear_property_url if card.active else card.link }}"
+                href="{{ card.link }}"
                 class="property-card-link"
                 aria-label="Filtruj: {{ card.name | format_property }}"
               ></a>
@@ -76,13 +78,19 @@
                 <div class="property-card-segment">{{ card.segment }}</div>
                 {% endif %}
                 <div class="property-card-counts">
-                  <span class="pill pill-overdue">{{ card.overdue }} zaległe</span>
-                  <span class="pill pill-upcoming">{{ card.upcoming }} nadchodzące</span>
-                  <div class="pill-with-icon">
-                    <span class="pill pill-current">{{ card.current }} aktualne</span>
-                    <a
-                      class="property-calendar-link"
-                      href="{{ url_for('calendar_view', property=card.name) }}"
+                <a class="pill pill-overdue property-status-link" href="{{ card.overdue_link }}" title="Pokaż zaległe">
+                  {{ card.overdue }} zaległe
+                </a>
+                <a class="pill pill-upcoming property-status-link" href="{{ card.upcoming_link }}" title="Pokaż nadchodzące">
+                  {{ card.upcoming }} nadchodzące
+                </a>
+                <div class="pill-with-icon">
+                  <a class="pill pill-current property-status-link" href="{{ card.current_link }}" title="Pokaż aktualne">
+                    {{ card.current }} aktualne
+                  </a>
+                  <a
+                    class="property-calendar-link"
+                    href="{{ url_for('calendar_view', property=card.name) }}"
                       aria-label="Kalendarz: {{ card.name | format_property }}"
                       title="Kalendarz"
                     >
