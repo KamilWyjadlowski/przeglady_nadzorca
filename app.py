@@ -2214,12 +2214,28 @@ def history(inspection_id: int):
         .order_by(InspectionOccurrence.due_date.desc())
         .all()
     )
+    zlecone_row_id = None
+    if ins.zlecone_at:
+        target = ins.zlecone_at.date()
+        closest = None
+        closest_diff = None
+        for occ in occurrences:
+            occ_date = occ.done_date or occ.due_date
+            if not occ_date:
+                continue
+            diff = abs((occ_date - target).days)
+            if closest_diff is None or diff < closest_diff:
+                closest = occ
+                closest_diff = diff
+        if closest:
+            zlecone_row_id = closest.id
     return render_template(
         "history.html",
         inspection=ins,
         occurrences=occurrences,
         today=date.today(),
         return_to=clean_return_to(request.args.get("return_to") or ""),
+        zlecone_row_id=zlecone_row_id,
     )
 
 

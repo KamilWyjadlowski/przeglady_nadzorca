@@ -66,8 +66,8 @@
               {% endif %}
             </td>
             <td>
-              {% if inspection.zlecone_at %}
-                {{ inspection.zlecone_at.strftime("%d.%m.%Y") }}
+              {% if inspection.zlecone_at and zlecone_row_id == occ.id %}
+                {{ inspection.zlecone_at.strftime("%d.%m.%Y %H:%M") }}
               {% else %}
                 —
               {% endif %}
