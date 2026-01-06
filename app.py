@@ -908,16 +908,13 @@ def filter_inspections(inspections, args):
     return filtered
 
 
-def build_property_cards(inspections, args):
+def build_property_cards(inspections, args, segment_value=""):
     current_properties = [v.strip() for v in args.getlist("nieruchomosc") if v.strip()]
     current_property = current_properties[0] if len(current_properties) == 1 else ""
-    base_args = args.to_dict(flat=False)
-    base_args.pop("page", None)
-    base_args.pop("status", None)
-    base_args.pop("nieruchomosc", None)
-
     def build_link(prop, status=None):
-        params = base_args.copy()
+        params = {}
+        if segment_value:
+            params["segment"] = segment_value
         params["nieruchomosc"] = prop
         if status:
             params["status"] = status
@@ -1019,7 +1016,7 @@ def index():
     used_properties = get_unique(segment_inspections, "nieruchomosc")
     used_names = get_unique(segment_inspections, "nazwa")
     used_status = get_unique(segment_inspections, "status")
-    property_cards = build_property_cards(segment_inspections, request.args)
+    property_cards = build_property_cards(segment_inspections, request.args, active_segment)
     selected_names = [v for v in request.args.getlist("nazwa") if v]
     selected_status = [v for v in request.args.getlist("status") if v]
     selected_uwagi = [v for v in request.args.getlist("uwagi") if v]
