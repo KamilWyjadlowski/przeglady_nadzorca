@@ -85,6 +85,7 @@ class Inspection(Base):
     kolejna_data = Column(Date, nullable=False)
     status = Column(String(32), nullable=False)
     zlecone = Column(Integer, nullable=False, default=0)
+    zlecone_at = Column(DateTime)
     opis = Column(Text)
     firma = Column(String(255))
     telefon = Column(String(64))
@@ -378,6 +379,20 @@ def ensure_inspections_zlecone_column(engine):
 
 
 ensure_inspections_zlecone_column(engine)
+
+
+def ensure_inspections_zlecone_at_column(engine):
+    with engine.begin() as conn:
+        res = conn.exec_driver_sql(
+            "SHOW COLUMNS FROM inspections LIKE 'zlecone_at'"
+        ).fetchone()
+        if not res:
+            conn.exec_driver_sql(
+                "ALTER TABLE inspections ADD COLUMN zlecone_at DATETIME"
+            )
+
+
+ensure_inspections_zlecone_at_column(engine)
 
 
 def ensure_company_tables(engine):
@@ -812,6 +827,7 @@ def load_inspections_for_user(db, user):
             "kolejna_data": ins.kolejna_data.isoformat() if ins.kolejna_data else "",
             "status": ins.status,
             "zlecone": bool(ins.zlecone),
+            "zlecone_at": ins.zlecone_at.isoformat() if ins.zlecone_at else "",
             "opis": ins.opis or "",
             "firma": ins.firma or "",
             "telefon": ins.telefon or "",
@@ -2024,7 +2040,12 @@ def toggle_zlecone(idx: int):
     }
     if not user_can_access(g.user, ins_dict, prop_access):
         return "Brak dostępu do tego przeglądu.", 403
-    ins.zlecone = 0 if ins.zlecone else 1
+    if ins.zlecone:
+        ins.zlecone = 0
+        ins.zlecone_at = None
+    else:
+        ins.zlecone = 1
+        ins.zlecone_at = datetime.utcnow()
     db.commit()
     return redirect(get_return_to())
 

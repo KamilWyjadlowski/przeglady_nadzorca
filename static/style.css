@@ -177,9 +177,9 @@ table td:nth-child(11) {
 }
 
 .action-icon--toggle.is-active {
-  background: #e0f2fe;
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  background: #e3f6e8;
+  border-color: #b7e1c4;
+  color: #1b8a2f;
 }
 
 .admin-props-table {

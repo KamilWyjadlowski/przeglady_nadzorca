@@ -42,6 +42,7 @@
             <th>Termin</th>
             <th>Wykonano</th>
             <th>Status</th>
+            <th>Zlecono</th>
             <th>Kto</th>
             <th>Notatka</th>
             <th>Akcje</th>
@@ -62,6 +63,13 @@
                 Zaległy
               {% else %}
                 {{ occ.status }}
+              {% endif %}
+            </td>
+            <td>
+              {% if inspection.zlecone_at %}
+                {{ inspection.zlecone_at.strftime("%d.%m.%Y") }}
+              {% else %}
+                —
               {% endif %}
             </td>
             <td>{{ occ.performed_by or "—" }}</td>
