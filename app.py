@@ -930,7 +930,32 @@ def build_property_cards(inspections, args):
 def index():
     db = get_db()
     inspections = load_inspections_for_user(db, g.user)
-    filtered = filter_inspections(inspections, request.args)
+    all_segments = [s for s in get_unique(inspections, "segment") if s]
+    segment_param = request.args.get("segment", "").strip()
+    default_segment = "Hurt" if "Hurt" in all_segments else (all_segments[0] if all_segments else "")
+    if all_segments and (not segment_param or segment_param not in all_segments):
+        params = request.args.to_dict(flat=False)
+        if default_segment:
+            params["segment"] = default_segment
+        params.pop("page", None)
+        return redirect(url_for("index", **params))
+
+    active_segment = segment_param
+    segment_inspections = (
+        [i for i in inspections if i.get("segment") == active_segment]
+        if active_segment
+        else inspections
+    )
+
+    selected_properties = [v for v in request.args.getlist("nieruchomosc") if v]
+    allowed_properties = {i.get("nieruchomosc") for i in segment_inspections}
+    if selected_properties and not set(selected_properties).issubset(allowed_properties):
+        params = request.args.to_dict(flat=False)
+        params.pop("nieruchomosc", None)
+        params.pop("page", None)
+        return redirect(url_for("index", **params))
+
+    filtered = filter_inspections(segment_inspections, request.args)
 
     try:
         page = max(1, int(request.args.get("page", 1)))
@@ -938,22 +963,18 @@ def index():
         page = 1
     per_page = 15
 
-    used_properties = get_unique(inspections, "nieruchomosc")
-    used_names = get_unique(inspections, "nazwa")
-    used_status = get_unique(inspections, "status")
-    used_segments = get_unique(inspections, "segment")
-    property_cards = build_property_cards(inspections, request.args)
-    selected_properties = [v for v in request.args.getlist("nieruchomosc") if v]
+    used_properties = get_unique(segment_inspections, "nieruchomosc")
+    used_names = get_unique(segment_inspections, "nazwa")
+    used_status = get_unique(segment_inspections, "status")
+    property_cards = build_property_cards(segment_inspections, request.args)
     selected_names = [v for v in request.args.getlist("nazwa") if v]
     selected_status = [v for v in request.args.getlist("status") if v]
     selected_uwagi = [v for v in request.args.getlist("uwagi") if v]
-    selected_segments = [v for v in request.args.getlist("segment") if v]
     active_filter_count = (
         len(selected_properties)
         + len(selected_names)
         + len(selected_status)
         + len(selected_uwagi)
-        + len(selected_segments)
     )
 
     total = len(filtered)
@@ -970,12 +991,23 @@ def index():
     clear_property_url = url_for(
         "index", **{k: v for k, v in args_no_page.items() if k != "nieruchomosc"}
     )
+    segment_links = []
+    for segment in all_segments:
+        params = args_no_page.copy()
+        params["segment"] = segment
+        segment_links.append(
+            {
+                "label": segment,
+                "url": url_for("index", **params),
+                "active": segment == active_segment,
+            }
+        )
     clear_filters_url = url_for(
         "index",
         **{
             k: v
             for k, v in args_no_page.items()
-            if k not in {"nieruchomosc", "nazwa", "status", "uwagi", "segment", "sort"}
+            if k not in {"nieruchomosc", "nazwa", "status", "uwagi", "sort"}
         },
     )
 
@@ -994,13 +1026,13 @@ def index():
         used_names=used_names,
         used_status=used_status,
         used_uwagi=["tak", "nie"],
-        used_segments=used_segments,
         property_cards=property_cards,
         selected_properties=selected_properties,
         selected_names=selected_names,
         selected_status=selected_status,
         selected_uwagi=selected_uwagi,
-        selected_segments=selected_segments,
+        segments=segment_links,
+        active_segment=active_segment,
         active_filter_count=active_filter_count,
         clear_property_url=clear_property_url,
         clear_filters_url=clear_filters_url,
