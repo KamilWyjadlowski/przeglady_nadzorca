@@ -232,8 +232,24 @@
           {% else %}
           <a href="{{ url_for('index') }}" class="btn">Anuluj</a>
           {% endif %}
+          {% if mode == "edit" %}
+          <button type="submit" form="deleteInspectionForm" class="btn btn-danger">Usuń przegląd</button>
+          {% endif %}
         </div>
       </form>
+      {% if mode == "edit" %}
+      <form
+        id="deleteInspectionForm"
+        method="POST"
+        action="{{ url_for('delete', idx=inspection_id) }}"
+        onsubmit="return confirm('Na pewno usunąć ten przegląd?');"
+      >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+        {% endif %}
+      </form>
+      {% endif %}
     </div>
 
     <script type="application/json" id="companyContactsData">

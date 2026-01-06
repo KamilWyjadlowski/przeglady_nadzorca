@@ -84,6 +84,7 @@ class Inspection(Base):
     czestotliwosc_miesiace = Column(Integer, nullable=False)
     kolejna_data = Column(Date, nullable=False)
     status = Column(String(32), nullable=False)
+    zlecone = Column(Integer, nullable=False, default=0)
     opis = Column(Text)
     firma = Column(String(255))
     telefon = Column(String(64))
@@ -363,6 +364,20 @@ def ensure_users_email_column(engine):
 
 
 ensure_users_email_column(engine)
+
+
+def ensure_inspections_zlecone_column(engine):
+    with engine.begin() as conn:
+        res = conn.exec_driver_sql(
+            "SHOW COLUMNS FROM inspections LIKE 'zlecone'"
+        ).fetchone()
+        if not res:
+            conn.exec_driver_sql(
+                "ALTER TABLE inspections ADD COLUMN zlecone TINYINT NOT NULL DEFAULT 0"
+            )
+
+
+ensure_inspections_zlecone_column(engine)
 
 
 def ensure_company_tables(engine):
@@ -796,6 +811,7 @@ def load_inspections_for_user(db, user):
             "czestotliwosc_miesiace": ins.czestotliwosc_miesiace,
             "kolejna_data": ins.kolejna_data.isoformat() if ins.kolejna_data else "",
             "status": ins.status,
+            "zlecone": bool(ins.zlecone),
             "opis": ins.opis or "",
             "firma": ins.firma or "",
             "telefon": ins.telefon or "",
@@ -1959,6 +1975,7 @@ def edit(idx: int):
         all_users=db.query(User).all(),
         property_access=prop_access,
         return_to=return_to,
+        inspection_id=ins_obj.id,
     )
 
 
@@ -1992,6 +2009,26 @@ def delete(idx: int):
         },
         db_session=db,
     )
+    return redirect(get_return_to())
+
+
+@app.route("/inspection/<int:idx>/toggle_zlecone", methods=["POST"])
+@login_required
+def toggle_zlecone(idx: int):
+    db = get_db()
+    prop_access = get_property_access_map(db)
+    ins = db.query(Inspection).filter_by(id=idx).first()
+    if not ins:
+        return "Nie znaleziono przeglądu.", 404
+    ins_dict = {
+        "nazwa": ins.nazwa,
+        "nieruchomosc": ins.nieruchomosc,
+        "owner": ins.owner,
+    }
+    if not user_can_access(g.user, ins_dict, prop_access):
+        return "Brak dostępu do tego przeglądu.", 403
+    ins.zlecone = 0 if ins.zlecone else 1
+    db.commit()
     return redirect(get_return_to())
 
 

@@ -378,7 +378,7 @@
                   {% endif %}
                   {% if ins.email %}
                   <div class="contact-email">
-                    ✉️ <span>{{ ins.email }}</span>
+                    ✉️ <a href="mailto:{{ ins.email }}">{{ ins.email }}</a>
                   </div>
                   {% endif %}
                 </div>
@@ -435,23 +435,6 @@
                     />
                   </svg>
                 </a>
-                <form
-                  method="POST"
-                  action="{{ url_for('delete', idx=ins.idx) }}"
-                  class="action-form"
-                  onsubmit="return confirm('Na pewno usunąć ten przegląd?');"
-                >
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="action-icon action-icon--danger" title="Usuń" aria-label="Usuń">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M7 7h10l-1 12H8L7 7zm2-3h6l1 2H8l1-2z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                </form>
                 <a
                   href="{{ url_for('history', inspection_id=ins.id, return_to=return_to) }}"
                   class="action-icon"
@@ -465,6 +448,20 @@
                     />
                   </svg>
                 </a>
+                <form
+                  method="POST"
+                  action="{{ url_for('toggle_zlecone', idx=ins.idx) }}"
+                  class="action-form"
+                >
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="return_to" value="{{ return_to }}">
+                  <button
+                    type="submit"
+                    class="action-icon action-icon--toggle {% if ins.zlecone %}is-active{% endif %}"
+                    title="Zlecone"
+                    aria-label="Zlecone"
+                  >ZL</button>
+                </form>
               </div>
             </td>
           </tr>
