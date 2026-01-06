@@ -13,7 +13,11 @@
           <span class="tag">{{ inspection.nazwa }} — {{ inspection.nieruchomosc | format_property }}</span>
         </div>
         <div class="user-panel">
+          {% if return_to %}
+          <a href="{{ return_to }}" class="btn">← Lista</a>
+          {% else %}
           <a href="{{ url_for('index') }}" class="btn">← Lista</a>
+          {% endif %}
                     {% if current_user and current_user.role == "admin" %}
           <a href="{{ url_for('admin_properties') }}" class="btn">Panel nieruchomości</a>
           <a href="{{ url_for('admin_notifications') }}" class="btn">Powiadomienia</a>

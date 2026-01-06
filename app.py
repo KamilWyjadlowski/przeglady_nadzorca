@@ -22,6 +22,7 @@ from functools import wraps
 from math import ceil
 from typing import List, Dict, Optional
 from email.message import EmailMessage
+from urllib.parse import urlparse
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import (
     create_engine,
@@ -172,6 +173,32 @@ def parse_date(s: str) -> date:
         raise ValueError(
             f"Nieprawidłowy format daty: '{s}'. Użyj RRRR-MM-DD lub DD.MM.RRRR."
         )
+
+
+def current_path_with_query() -> str:
+    full = request.full_path
+    return full[:-1] if full.endswith("?") else full
+
+
+def clean_return_to(value: str) -> str:
+    if not value:
+        return ""
+    value = value.strip()
+    if value.endswith("?"):
+        value = value[:-1]
+    parsed = urlparse(value)
+    if parsed.scheme or parsed.netloc:
+        return ""
+    if not value.startswith("/"):
+        return ""
+    return value
+
+
+def get_return_to(default_endpoint: str = "index") -> str:
+    target = clean_return_to(
+        request.form.get("return_to") or request.args.get("return_to") or ""
+    )
+    return target or url_for(default_endpoint)
 
 
 def normalize_property_name(raw: str) -> str:
@@ -1034,6 +1061,7 @@ def index():
 
     prev_url = build_page_url(page - 1) if page > 1 else None
     next_url = build_page_url(page + 1) if page < total_pages else None
+    return_to = current_path_with_query()
 
     return render_template(
         "index.html",
@@ -1059,6 +1087,7 @@ def index():
         total_items=total,
         per_page=per_page,
         args_dict=args_dict,
+        return_to=return_to,
     )
 
 
@@ -1105,6 +1134,7 @@ def firm_index():
         used_scopes=used_scopes,
         selected_property=selected_property,
         selected_scope=selected_scope,
+        return_to=current_path_with_query(),
     )
 
 
@@ -1114,6 +1144,7 @@ def firm_detail(company: str):
     db = get_db()
     ensure_company_seed(db)
     inspections = load_inspections_for_user(db, g.user)
+    return_to = clean_return_to(request.args.get("return_to") or "")
     allowed_properties = {i.get("nieruchomosc") for i in inspections if i.get("nieruchomosc")}
     key = normalize_company_key(company)
     all_contacts = db.query(CompanyContact).all()
@@ -1189,6 +1220,7 @@ def firm_detail(company: str):
         used_properties=used_properties,
         used_scopes=used_scopes,
         edit_contact_id=edit_contact_id,
+        return_to=return_to,
     )
 
 
@@ -1676,6 +1708,9 @@ def build_company_directory(db, allowed_properties=None):
 @login_required
 def add():
     db = get_db()
+    return_to = clean_return_to(
+        request.form.get("return_to") or request.args.get("return_to") or ""
+    )
     prop_access_map = get_property_access_map(db)
     prop_segments = get_property_segment_map(db)
     inspections = []
@@ -1770,7 +1805,7 @@ def add():
             },
             db_session=db,
         )
-        return redirect(url_for("index"))
+        return redirect(return_to or url_for("index"))
 
     return render_template(
         "form.html",
@@ -1783,6 +1818,7 @@ def add():
         company_contacts=build_company_contacts(inspections),
         all_users=db.query(User).all(),
         property_access=prop_access_map,
+        return_to=return_to,
     )
 
 
@@ -1790,6 +1826,9 @@ def add():
 @login_required
 def edit(idx: int):
     db = get_db()
+    return_to = clean_return_to(
+        request.form.get("return_to") or request.args.get("return_to") or ""
+    )
     prop_access = get_property_access_map(db)
     ins_obj = db.query(Inspection).filter_by(id=idx).first()
     if not ins_obj:
@@ -1887,7 +1926,7 @@ def edit(idx: int):
                 db_session=db,
             )
             send_upcoming_notification(db, ins_obj, previous_status=before_status)
-            return redirect(url_for("index"))
+            return redirect(return_to or url_for("index"))
 
     else:
         form = {
@@ -1919,6 +1958,7 @@ def edit(idx: int):
         company_contacts=build_company_contacts(accessible),
         all_users=db.query(User).all(),
         property_access=prop_access,
+        return_to=return_to,
     )
 
 
@@ -1952,7 +1992,7 @@ def delete(idx: int):
         },
         db_session=db,
     )
-    return redirect(url_for("index"))
+    return redirect(get_return_to())
 
 
 @app.route("/occurrence/<int:occ_id>/complete", methods=["POST"])
@@ -2124,6 +2164,7 @@ def history(inspection_id: int):
         inspection=ins,
         occurrences=occurrences,
         today=date.today(),
+        return_to=clean_return_to(request.args.get("return_to") or ""),
     )
 
 

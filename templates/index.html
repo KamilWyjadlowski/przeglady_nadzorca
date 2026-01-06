@@ -133,7 +133,7 @@
               />
             </div>
             <div class="toolbar-actions">
-              <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Dodaj przegląd</a>
+              <a href="{{ url_for('add', return_to=return_to) }}" class="btn btn-primary">➕ Dodaj przegląd</a>
               <div class="filter-shell">
                 <button
                   type="button"
@@ -423,7 +423,7 @@
             <td class="actions-cell">
               <div class="action-toolbar">
                 <a
-                  href="{{ url_for('edit', idx=ins.idx) }}"
+                  href="{{ url_for('edit', idx=ins.idx, return_to=return_to) }}"
                   class="action-icon"
                   title="Edytuj"
                   aria-label="Edytuj"
@@ -442,6 +442,7 @@
                   onsubmit="return confirm('Na pewno usunąć ten przegląd?');"
                 >
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="return_to" value="{{ return_to }}">
                   <button type="submit" class="action-icon action-icon--danger" title="Usuń" aria-label="Usuń">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path
@@ -452,7 +453,7 @@
                   </button>
                 </form>
                 <a
-                  href="{{ url_for('history', inspection_id=ins.id) }}"
+                  href="{{ url_for('history', inspection_id=ins.id, return_to=return_to) }}"
                   class="action-icon"
                   title="Historia"
                   aria-label="Historia"

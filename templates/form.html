@@ -40,6 +40,9 @@
 
       <form method="post" class="form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+        {% endif %}
         <div class="field">
           <label for="nazwa">Nazwa przeglądu</label>
           <input
@@ -224,7 +227,11 @@
             {% if mode == "add" %}Zapisz przegląd{% else %}Zapisz zmiany{% endif
             %}
           </button>
+          {% if return_to %}
+          <a href="{{ return_to }}" class="btn">Anuluj</a>
+          {% else %}
           <a href="{{ url_for('index') }}" class="btn">Anuluj</a>
+          {% endif %}
         </div>
       </form>
     </div>

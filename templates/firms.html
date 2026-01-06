@@ -80,7 +80,7 @@
         {% for firm in firms %}
         <div
           class="firm-row"
-          data-href="{{ url_for('firm_detail', company=firm.name) }}"
+          data-href="{{ url_for('firm_detail', company=firm.name, return_to=return_to) }}"
           role="link"
           tabindex="0"
           aria-label="Firma {{ firm.name }}"

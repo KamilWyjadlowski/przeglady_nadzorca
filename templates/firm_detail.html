@@ -42,7 +42,11 @@
       </div>
 
       <div class="firm-detail-top">
+        {% if return_to %}
+        <a href="{{ return_to }}" class="btn btn-ghost">← Lista firm</a>
+        {% else %}
         <a href="{{ url_for('firm_index') }}" class="btn btn-ghost">← Lista firm</a>
+        {% endif %}
       </div>
 
       <div class="firm-detail-header">
