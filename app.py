@@ -991,8 +991,14 @@ def index():
     clear_property_url = url_for(
         "index", **{k: v for k, v in args_no_page.items() if k != "nieruchomosc"}
     )
+    preferred_order = ["Hurt", "Detal", "Pozostałe"]
+    order_map = {name: idx for idx, name in enumerate(preferred_order)}
+    ordered_segments = sorted(
+        all_segments,
+        key=lambda s: (order_map.get(s, 99), s.lower()),
+    )
     segment_links = []
-    for segment in all_segments:
+    for segment in ordered_segments:
         params = args_no_page.copy()
         params["segment"] = segment
         segment_links.append(
